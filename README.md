@@ -93,7 +93,7 @@ O script lê o `.env.local` e cadastra tudo nos três ambientes, sem imprimir
 nenhum valor na tela. Ele já troca o `NEXT_PUBLIC_APP_URL` para o domínio de
 produção — sem isso os links dos e-mails apontariam para `localhost`.
 
-Se o domínio final for diferente de `https://gestao-ti.vercel.app`:
+Se o domínio final for diferente de `https://gestao-ti-lube-distribuidora-ltda.vercel.app`:
 
 ```bash
 URL_PRODUCAO=https://seu-dominio.vercel.app node scripts/configurar-vercel.mjs
