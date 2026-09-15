@@ -1,0 +1,72 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin, BUCKET_DOCUMENTOS } from "@/lib/supabase";
+import { sessaoAtual, podeEscrever } from "@/lib/sessao-servidor";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
+/** Upload manual de nota/fatura direto pela tela. */
+export async function POST(req: Request) {
+  const sessao = await sessaoAtual();
+  if (!podeEscrever(sessao)) {
+    return NextResponse.json({ erro: "Seu perfil não permite enviar documentos." }, { status: 403 });
+  }
+
+  const form = await req.formData();
+  const arquivo = form.get("arquivo") as File | null;
+  const faturaId = String(form.get("fatura_id") ?? "");
+  const tipo = String(form.get("tipo") ?? "outro");
+
+  if (!arquivo || !faturaId) {
+    return NextResponse.json({ erro: "Informe o arquivo e a fatura." }, { status: 400 });
+  }
+  if (arquivo.size > 20 * 1024 * 1024) {
+    return NextResponse.json({ erro: "Arquivo acima de 20 MB." }, { status: 400 });
+  }
+
+  const db = supabaseAdmin();
+
+  const { data: fatura } = await db
+    .from("vw_faturas_detalhe")
+    .select("id, fornecedor_id, status")
+    .eq("id", faturaId)
+    .maybeSingle();
+
+  if (!fatura) return NextResponse.json({ erro: "Fatura não encontrada." }, { status: 404 });
+
+  const nomeSeguro = arquivo.name.replace(/[^\w.\-]/g, "_").slice(-120);
+  const path = `${fatura.fornecedor_id}/${faturaId}/${Date.now()}-${nomeSeguro}`;
+  const buffer = Buffer.from(await arquivo.arrayBuffer());
+
+  const up = await db.storage
+    .from(BUCKET_DOCUMENTOS)
+    .upload(path, buffer, { contentType: arquivo.type || "application/octet-stream" });
+
+  if (up.error) return NextResponse.json({ erro: up.error.message }, { status: 400 });
+
+  await db.from("documentos").insert({
+    fatura_id: faturaId,
+    fornecedor_id: fatura.fornecedor_id,
+    tipo,
+    confianca: "alta", // enviado por uma pessoa, que escolheu o tipo
+    nome_arquivo: arquivo.name,
+    storage_path: path,
+    tamanho_bytes: arquivo.size,
+    mime_type: arquivo.type,
+    origem: "upload_manual",
+    confirmado_em: new Date().toISOString(),
+    confirmado_por: sessao?.nome ?? null,
+  });
+
+  // o upload manual também baixa a pendência da fatura
+  const agora = new Date().toISOString();
+  const patch: Record<string, unknown> = { precisa_revisao: false };
+  if (tipo === "nota_fiscal") patch.nota_fiscal_recebida_em = agora;
+  if (tipo === "fatura" || tipo === "boleto") patch.fatura_recebida_em = agora;
+  if (fatura.status === "aguardando_documentos") patch.status = "documentos_recebidos";
+
+  await db.from("faturas").update(patch).eq("id", faturaId);
+
+  return NextResponse.json({ ok: true });
+}

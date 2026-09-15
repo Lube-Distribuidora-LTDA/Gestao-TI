@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+
+# variáveis de ambiente — nunca versionar
+.env
+.env.local
+.env*.local
+
+npm-debug.log*
+yarn-error.log*
+.vercel
+*.tsbuildinfo
+next-env.d.ts

@@ -1,0 +1,286 @@
+@import "tailwindcss";
+
+/* =========================================================
+   LUBE DISTRIBUIDORA — Identidade visual
+   Azul marinho profundo + vermelho de acento
+   ========================================================= */
+
+@theme {
+  /* Azuis da marca */
+  --color-lube-50:  #eef2ff;
+  --color-lube-100: #dfe6ff;
+  --color-lube-200: #c2cfff;
+  --color-lube-300: #96abff;
+  --color-lube-400: #6a81f7;
+  --color-lube-500: #4659e0;
+  --color-lube-600: #2f3cc4;
+  --color-lube-700: #1e2f8f;   /* azul do logo */
+  --color-lube-800: #16225f;
+  --color-lube-900: #0e1742;
+  --color-lube-950: #070d2a;
+
+  /* Vermelho do logo */
+  --color-brand-red:      #ee1c25;
+  --color-brand-red-dark: #c40f18;
+
+  /* Superfícies do tema escuro */
+  --color-surface-0: #060b22;
+  --color-surface-1: #0b1233;
+  --color-surface-2: #111a45;
+  --color-surface-3: #18245a;
+  --color-border-soft: rgba(126, 148, 255, 0.16);
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------------- Base ---------------- */
+html { color-scheme: dark; }
+
+body {
+  background:
+    radial-gradient(1200px 600px at 12% -8%,  rgba(46, 61, 196, 0.30), transparent 60%),
+    radial-gradient(900px 500px at 92% 4%,    rgba(238, 28, 37, 0.13), transparent 58%),
+    radial-gradient(700px 700px at 50% 118%,  rgba(70, 89, 224, 0.18), transparent 60%),
+    var(--color-surface-0);
+  background-attachment: fixed;
+  color: #e8ecff;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+::selection { background: var(--color-lube-500); color: #fff; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-lube-600), var(--color-lube-800));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-lube-500); background-clip: padding-box; }
+
+/* ---------------- Componentes utilitários ---------------- */
+@layer components {
+  .card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--color-border-soft);
+    padding: 1.25rem;
+    background: linear-gradient(160deg, rgba(23, 34, 92, 0.82), rgba(9, 15, 46, 0.86));
+    box-shadow: 0 10px 34px -16px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+  }
+
+  /* brilho diagonal que percorre o card no hover */
+  .card-glow::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.07) 48%, transparent 58%);
+    transform: translateX(-120%);
+    transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+  .card-glow:hover::after { transform: translateX(120%); }
+
+  .card-hover {
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s, box-shadow 0.28s;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px);
+    border-color: rgba(138, 160, 255, 0.42);
+    box-shadow: 0 20px 46px -20px rgba(24, 40, 150, 0.95);
+  }
+
+  /* Base compartilhada dos botões — escrita uma vez, aplicada às três variantes.
+     (No Tailwind v4 uma classe do projeto não pode ser usada em @apply, então
+     a composição é feita pelo próprio seletor.) */
+  .btn,
+  .btn-primary,
+  .btn-danger,
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn:disabled,
+  .btn-primary:disabled,
+  .btn-danger:disabled,
+  .btn-ghost:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn:focus-visible,
+  .btn-primary:focus-visible,
+  .btn-danger:focus-visible,
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--color-lube-400);
+    outline-offset: 2px;
+  }
+
+  .btn-primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--color-lube-600), var(--color-lube-800));
+    box-shadow: 0 8px 22px -10px rgba(47, 60, 196, 0.95);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--color-lube-500), var(--color-lube-700));
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px -10px rgba(70, 89, 224, 1);
+  }
+
+  .btn-danger {
+    color: #fff;
+    background: linear-gradient(135deg, var(--color-brand-red), var(--color-brand-red-dark));
+    box-shadow: 0 8px 22px -10px rgba(238, 28, 37, 0.8);
+  }
+  .btn-danger:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+  }
+
+  .btn-ghost {
+    color: var(--color-lube-100);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--color-border-soft);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(138, 160, 255, 0.45);
+  }
+
+  .input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border-soft);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: #fff;
+    background: rgba(6, 11, 34, 0.72);
+    transition: all 0.2s ease;
+  }
+  .input::placeholder { color: rgba(150, 171, 255, 0.45); }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-lube-400);
+    box-shadow: 0 0 0 3px rgba(106, 129, 247, 0.22);
+    background: rgba(6, 11, 34, 0.92);
+  }
+  .input:disabled { opacity: 0.55; cursor: not-allowed; }
+  /* as opções do select herdam o fundo do sistema; forçamos o tema escuro */
+  .input option { background: #0b1233; color: #e8ecff; }
+
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(150, 171, 255, 0.85);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    padding: 0.25rem 0.625rem;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 1rem;
+    border: 1px solid var(--color-border-soft);
+    background: rgba(9, 15, 46, 0.55);
+  }
+  .tbl {
+    width: 100%;
+    font-size: 0.875rem;
+    border-collapse: collapse;
+  }
+  .tbl thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-lube-300);
+    background: rgba(22, 34, 95, 0.75);
+    border-bottom: 1px solid var(--color-border-soft);
+    white-space: nowrap;
+  }
+  .tbl tbody td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(126, 148, 255, 0.09);
+  }
+  .tbl tbody tr { transition: background 0.18s; }
+  .tbl tbody tr:hover { background: rgba(70, 89, 224, 0.12); }
+  .tbl tbody tr:last-child td { border-bottom: none; }
+}
+
+/* ---------------- Animações ---------------- */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(238, 28, 37, 0.55); }
+  70%  { box-shadow: 0 0 0 11px rgba(238, 28, 37, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(238, 28, 37, 0); }
+}
+.animate-pulse-ring { animation: pulse-ring 2s infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 8%, rgba(255,255,255,0.10) 18%, rgba(255,255,255,0.04) 33%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.9s linear infinite;
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(26px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in { animation: slide-in-right 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* impressão limpa de faturas/chamados */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+  .card { border: 1px solid #ccc !important; background: #fff !important; box-shadow: none !important; }
+}
