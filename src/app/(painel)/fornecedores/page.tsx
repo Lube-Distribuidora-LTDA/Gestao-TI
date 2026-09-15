@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Plus, Search, Pencil, Trash2, Mail, Phone, Loader2, AtSign } from "lucide-react";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge } from "@/components/UI";
-import { cnpjFmt } from "@/lib/format";
+import { cnpjFmt, moeda } from "@/lib/format";
 
 type Fornecedor = {
   id: string;
@@ -104,12 +104,59 @@ export default function FornecedoresPage() {
     }
   }
 
+  /**
+   * Excluir leva junto contratos, competências, documentos e cobranças.
+   * Por isso o impacto é levantado antes e mostrado na confirmação: sem esse
+   * aviso dá para apagar anos de histórico achando que se removeu só um nome
+   * da lista.
+   */
   async function excluir(f: Fornecedor) {
-    if (!confirm(`Excluir o fornecedor "${f.nome}"?`)) return;
-    const r = await fetch(`/api/crud/fornecedores/${f.id}`, { method: "DELETE" });
+    let aviso = `Excluir o fornecedor "${f.nome}"?`;
+
+    try {
+      const r = await fetch(`/api/fornecedores/${f.id}`);
+      const i = await r.json();
+
+      if (r.ok && (i.contas?.length > 0 || i.faturas > 0)) {
+        const linhas = [
+          `Excluir "${f.nome}" apaga também:`,
+          "",
+          ...(i.contas?.length
+            ? [`• ${i.contas.length} contrato(s): ${i.contas.slice(0, 6).join(", ")}${i.contas.length > 6 ? "..." : ""}`]
+            : []),
+          ...(i.faturas ? [`• ${i.faturas} competência(s) de fatura`] : []),
+          ...(i.documentos ? [`• ${i.documentos} documento(s) — notas e boletos guardados`] : []),
+          ...(i.cobrancas ? [`• ${i.cobrancas} registro(s) de cobrança enviada`] : []),
+          ...(i.valorTotal > 0 ? ["", `Some ${moeda(i.valorTotal)} em histórico de custo,`, "que some do dashboard."] : []),
+          "",
+          "Não há como desfazer. Continuar?",
+        ];
+        aviso = linhas.join("\n");
+      }
+    } catch {
+      // se o levantamento falhar, ainda dá para excluir — só sem o detalhe
+      aviso = `Excluir "${f.nome}" e todos os contratos, faturas e documentos ligados a ele?\n\nNão há como desfazer.`;
+    }
+
+    if (!confirm(aviso)) return;
+
+    const r = await fetch(`/api/fornecedores/${f.id}`, { method: "DELETE" });
     const d = await r.json();
+
     if (r.ok) {
-      mostrar("sucesso", "Fornecedor excluído.");
+      const rem = d.removidos ?? {};
+      const extras = [
+        rem.contas ? `${rem.contas} contrato(s)` : null,
+        rem.faturas ? `${rem.faturas} fatura(s)` : null,
+        rem.documentos ? `${rem.documentos} documento(s)` : null,
+      ].filter(Boolean);
+
+      mostrar(
+        "sucesso",
+        extras.length
+          ? `Fornecedor excluído, junto com ${extras.join(", ")}.`
+          : "Fornecedor excluído."
+      );
       carregar();
     } else {
       mostrar("erro", d.erro ?? "Não foi possível excluir.");
