@@ -295,36 +295,51 @@ export type ClassificacaoAnexo = {
   confianca: "alta" | "media" | "baixa";
 };
 
+const PISTA_NOTA   = /(nfse|nfs-e|nf-e|nf_e|nfe|nota[\s_-]?fiscal|danfe|\bnf\b)/i;
+const PISTA_BOLETO = /(boleto|\bbol\b|cobran[çc]a|t[íi]tulo)/i;
+const PISTA_FATURA = /(fatura|invoice|demonstrativo|conta[\s_-]?de)/i;
+const PISTA_CONTRATO = /(contrato|aditivo|proposta|relat[óo]rio|ata[\s_-]|termo)/i;
+
 /**
  * Descobre se o anexo é nota fiscal, fatura ou boleto.
  *
- * A classificação é deliberadamente conservadora: quando não há pista
- * suficiente, devolve confiança baixa e a tela pede confirmação humana em
- * vez de fingir certeza.
+ * O **nome do arquivo decide**; o assunto só entra quando o nome não diz nada.
+ * Essa ordem importa: o mesmo e-mail costuma levar a nota e o boleto juntos,
+ * com assunto do tipo "Boleto - FORNECEDOR - NFS-e: 2284". Misturar nome e
+ * assunto numa única busca fazia o `NFSE_2284.pdf` ser marcado como boleto,
+ * porque a palavra "boleto" aparecia no assunto.
+ *
+ * A classificação é conservadora de propósito: sem pista suficiente, devolve
+ * confiança baixa e a tela pede confirmação em vez de fingir certeza.
  */
 export function classificarAnexo(nomeArquivo: string, assunto: string): ClassificacaoAnexo {
-  const n = nomeArquivo.toLowerCase();
-  const a = assunto.toLowerCase();
-  const ctx = `${n} ${a}`;
+  const nome = nomeArquivo.toLowerCase();
 
   // XML no Brasil é praticamente sempre NF-e / NFS-e
-  if (/\.xml$/i.test(n)) return { tipo: "nota_fiscal", confianca: "alta" };
+  if (/\.xml$/i.test(nome)) return { tipo: "nota_fiscal", confianca: "alta" };
 
-  if (/\b(boleto|bol\b|cobranca|cobrança|titulo|título)/i.test(ctx))
-    return { tipo: "boleto", confianca: "alta" };
+  // ---------- 1. o nome do arquivo, sozinho ----------
+  const notaNoNome   = PISTA_NOTA.test(nome);
+  const boletoNoNome = PISTA_BOLETO.test(nome);
 
-  if (/\b(nfse|nfe|nf-e|nf_e|nfs-e|nota[\s_-]?fiscal|danfe|\bnf\b)/i.test(ctx))
-    return { tipo: "nota_fiscal", confianca: "alta" };
+  // "NFSe 934 - LUBE (FIREWALL) boleto.pdf" cita os dois: a nota prevalece,
+  // porque é o documento que o arquivo representa
+  if (notaNoNome)   return { tipo: "nota_fiscal", confianca: "alta" };
+  if (boletoNoNome) return { tipo: "boleto", confianca: "alta" };
+  if (PISTA_FATURA.test(nome))   return { tipo: "fatura", confianca: "alta" };
+  if (PISTA_CONTRATO.test(nome)) return { tipo: "contrato", confianca: "media" };
 
-  if (/\b(fatura|invoice|demonstrativo|conta[\s_-]?de)/i.test(ctx))
-    return { tipo: "fatura", confianca: "alta" };
+  // ---------- 2. o assunto, como pista secundária ----------
+  const a = assunto.toLowerCase();
 
-  if (/\b(contrato|aditivo|proposta)/i.test(ctx))
-    return { tipo: "contrato", confianca: "media" };
+  // no assunto a ordem se inverte: quem anuncia "Boleto ..." costuma anexar o
+  // boleto, e a nota vem citada só como referência
+  if (PISTA_BOLETO.test(a)) return { tipo: "boleto", confianca: "media" };
+  if (PISTA_NOTA.test(a))   return { tipo: "nota_fiscal", confianca: "media" };
+  if (PISTA_FATURA.test(a)) return { tipo: "fatura", confianca: "media" };
+  if (PISTA_CONTRATO.test(a)) return { tipo: "contrato", confianca: "baixa" };
 
   // PDF sem nenhuma pista: é documento, mas não sabemos qual
-  if (/\.pdf$/i.test(n)) return { tipo: "outro", confianca: "baixa" };
-
   return { tipo: "outro", confianca: "baixa" };
 }
 

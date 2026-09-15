@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Search, RefreshCw, CalendarPlus, FileCheck2, FileX2, Send, Printer,
+  Search, RefreshCw, CalendarPlus, FileCheck2, Send, Printer,
   AlertTriangle, Filter, Eye, Loader2,
 } from "lucide-react";
 import { Badge, Modal, Vazio, Aviso, useAviso, BotaoAcao } from "@/components/UI";
@@ -332,13 +332,17 @@ export function TelaFaturas({
                     </td>
 
                     <td>
+                      {/* Só o que chegou aparece aqui. O que ainda falta já está
+                          dito na coluna Situação — repetir em amarelo poluía a
+                          leitura e dava a impressão de documento existente. */}
                       <div className="flex items-center justify-center gap-1.5">
-                        {f.exige_nota_fiscal && (
-                          <Selo ok={!!f.nota_fiscal_recebida_em} rotulo="NF" />
-                        )}
-                        {f.exige_fatura && (
-                          <Selo ok={!!f.fatura_recebida_em} rotulo="Fat" />
-                        )}
+                        {!f.nota_fiscal_recebida_em &&
+                          !f.fatura_recebida_em &&
+                          !f.precisa_revisao && (
+                            <span className="text-xs text-lube-200/30">—</span>
+                          )}
+                        {f.nota_fiscal_recebida_em && <Selo tipo="nota" />}
+                        {f.fatura_recebida_em && <Selo tipo="fatura" />}
                         {f.precisa_revisao && (
                           <span title="Documento recebido aguardando conferência">
                             <AlertTriangle size={14} className="text-violet-300" />
@@ -404,18 +408,28 @@ export function TelaFaturas({
   );
 }
 
-function Selo({ ok, rotulo }: { ok: boolean; rotulo: string }) {
+/**
+ * Selo de documento recebido.
+ *
+ * Como só aparece quando o documento chegou, a cor não precisa mais indicar
+ * estado — ela distingue o tipo. Verde para a nota fiscal (documento fiscal),
+ * azul para a fatura/boleto (documento de pagamento), ambos da mesma paleta
+ * dos gráficos, testada para o fundo escuro.
+ */
+function Selo({ tipo }: { tipo: "nota" | "fatura" }) {
+  const nota = tipo === "nota";
   return (
     <span
-      title={ok ? `${rotulo} recebida` : `${rotulo} pendente`}
-      className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
-        ok
-          ? "border-emerald-400/35 bg-emerald-400/12 text-emerald-200"
-          : "border-amber-400/35 bg-amber-400/10 text-amber-200/80"
-      }`}
+      title={nota ? "Nota fiscal recebida" : "Fatura/boleto recebido"}
+      className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold"
+      style={
+        nota
+          ? { borderColor: "rgba(25,158,112,.45)", background: "rgba(25,158,112,.14)", color: "#7fe3bd" }
+          : { borderColor: "rgba(57,135,229,.45)", background: "rgba(57,135,229,.14)", color: "#9ec5f4" }
+      }
     >
-      {ok ? <FileCheck2 size={11} /> : <FileX2 size={11} />}
-      {rotulo}
+      <FileCheck2 size={11} />
+      {nota ? "NF" : "Fatura"}
     </span>
   );
 }

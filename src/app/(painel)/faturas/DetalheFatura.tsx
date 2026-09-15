@@ -415,7 +415,7 @@ export function DetalheFatura({
                     </select>
                   </div>
                 ) : (
-                  <span className="badge border-lube-400/30 bg-lube-500/12 text-lube-100">
+                  <span className="badge" style={corDoTipo(d.tipo)}>
                     {TIPO_DOCUMENTO[d.tipo]}
                   </span>
                 )}
@@ -490,4 +490,27 @@ export function DetalheFatura({
       </div>
     </div>
   );
+}
+
+/**
+ * Cor de cada tipo de documento, da mesma paleta dos gráficos.
+ *
+ * Verde é a nota fiscal, azul o documento de pagamento (fatura ou boleto).
+ * A cor diz o que o documento é — nunca se ele chegou, já que aqui todos
+ * chegaram.
+ */
+function corDoTipo(tipo: TipoDocumento): React.CSSProperties {
+  const paleta: Record<TipoDocumento, [string, string]> = {
+    nota_fiscal: ["25,158,112", "#7fe3bd"],   // verde
+    fatura:      ["57,135,229", "#9ec5f4"],   // azul
+    boleto:      ["57,135,229", "#9ec5f4"],   // azul — também é pagamento
+    contrato:    ["144,133,233", "#c9c2f5"],  // violeta
+    outro:       ["126,148,255", "#c9d4ff"],  // neutro
+  };
+  const [rgb, texto] = paleta[tipo] ?? paleta.outro;
+  return {
+    borderColor: `rgba(${rgb},.45)`,
+    background: `rgba(${rgb},.14)`,
+    color: texto,
+  };
 }
