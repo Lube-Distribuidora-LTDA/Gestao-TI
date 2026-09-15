@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Badge, Modal, Vazio, Aviso, useAviso, BotaoAcao } from "@/components/UI";
 import { moeda, data, competenciaLabel, competenciaAtual } from "@/lib/format";
-import { STATUS_FATURA, type StatusFatura } from "@/lib/tipos";
+import { STATUS_FATURA, alertaVencimento, type StatusFatura } from "@/lib/tipos";
 import { DetalheFatura } from "./DetalheFatura";
 
 export type FaturaLinha = {
@@ -129,8 +129,15 @@ export function TelaFaturas({
   /* ---------- totais do que está na tela ---------- */
   const total = linhas.reduce((s, f) => s + Number(f.valor_efetivo ?? 0), 0);
   const pendentes = linhas.filter((f) => f.status === "aguardando_documentos");
-  const vencidas = linhas.filter((f) => f.vencida);
+  const vencidas = linhas.filter((f) => alertaVencimento(f.vencimento, f.status).nivel === "vencida");
   const revisao = linhas.filter((f) => f.precisa_revisao);
+
+  // degraus de alerta, para os atalhos e o resumo do topo
+  const porNivel = (n: string) =>
+    linhas.filter((f) => alertaVencimento(f.vencimento, f.status).nivel === n);
+  const venceHoje = porNivel("hoje");
+  const urgentes = porNivel("urgente");
+  const atencao = porNivel("atencao");
 
   return (
     <>
@@ -242,6 +249,27 @@ export function TelaFaturas({
             Vencidas ({vencidas.length})
           </Atalho>
           <Atalho
+            ativo={filtros.filtro === "hoje"}
+            onClick={() => setFiltros({ ...filtros, filtro: "hoje", status: "" })}
+            cor="#ee1c25"
+          >
+            Vence hoje ({venceHoje.length})
+          </Atalho>
+          <Atalho
+            ativo={filtros.filtro === "urgente"}
+            onClick={() => setFiltros({ ...filtros, filtro: "urgente", status: "" })}
+            cor="#d95926"
+          >
+            Até 2 semanas ({urgentes.length})
+          </Atalho>
+          <Atalho
+            ativo={filtros.filtro === "mes"}
+            onClick={() => setFiltros({ ...filtros, filtro: "mes", status: "" })}
+            cor="#c98500"
+          >
+            Vence este mês ({atencao.length + urgentes.length + venceHoje.length})
+          </Atalho>
+          <Atalho
             ativo={filtros.filtro === "revisao"}
             onClick={() => setFiltros({ ...filtros, filtro: "revisao", status: "" })}
             cor="#9085e9"
@@ -312,14 +340,29 @@ export function TelaFaturas({
                     </td>
 
                     <td className="whitespace-nowrap">
-                      <div className={f.vencida ? "font-bold text-red-300" : "text-lube-100"}>
-                        {data(f.vencimento)}
-                      </div>
-                      {f.vencida && (
-                        <div className="text-[11px] text-red-300/75">
-                          {f.dias_atraso} dia{f.dias_atraso === 1 ? "" : "s"} em atraso
-                        </div>
-                      )}
+                      {(() => {
+                        const al = alertaVencimento(f.vencimento, f.status);
+                        const avisa = al.nivel !== "tranquilo" && al.nivel !== "quitada";
+                        return (
+                          <>
+                            <div
+                              className="font-semibold"
+                              style={{ color: avisa ? al.cor : undefined }}
+                              title={al.descricao}
+                            >
+                              {data(f.vencimento)}
+                            </div>
+                            {avisa && (
+                              <div
+                                className={`mt-0.5 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5
+                                            text-[10px] font-bold ${al.classe} ${al.pulsar ? "animate-pulse" : ""}`}
+                              >
+                                {al.rotulo}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
 
                     <td className="whitespace-nowrap text-right">

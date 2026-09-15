@@ -25,6 +25,29 @@ export async function GET(req: Request) {
   if (categoria) q = q.eq("categoria_id", categoria);
   if (filtro === "vencidas") q = q.eq("vencida", true);
   if (filtro === "revisao") q = q.eq("precisa_revisao", true);
+
+  /* Degraus de alerta por proximidade do vencimento. Contas já pagas ou
+     canceladas ficam de fora: não há o que acompanhar nelas. */
+  if (filtro === "hoje" || filtro === "urgente" || filtro === "mes") {
+    const hoje = new Date();
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+    q = q.not("status", "in", "(paga,cancelada)");
+
+    if (filtro === "hoje") {
+      q = q.eq("vencimento", iso(hoje));
+    } else if (filtro === "urgente") {
+      // de hoje até duas semanas à frente
+      const limite = new Date(hoje);
+      limite.setDate(limite.getDate() + 14);
+      q = q.gte("vencimento", iso(hoje)).lte("vencimento", iso(limite));
+    } else {
+      // qualquer vencimento dentro do mês corrente
+      const primeiro = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      const ultimo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+      q = q.gte("vencimento", iso(primeiro)).lte("vencimento", iso(ultimo));
+    }
+  }
   if (busca) {
     const termo = busca.replace(/[%,()]/g, "");
     q = q.or(`fornecedor_nome.ilike.%${termo}%,conta_descricao.ilike.%${termo}%`);

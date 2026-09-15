@@ -1,13 +1,13 @@
 import Link from "next/link";
 import {
-  Wallet, AlertTriangle, CheckCircle2, LifeBuoy, TrendingUp, FileWarning,
+  Wallet, AlertTriangle, CheckCircle2, LifeBuoy, TrendingUp, FileWarning, CalendarClock, CalendarDays,
   ArrowRight, Clock, Bot,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
 import { KpiCard, PageHeader, Badge } from "@/components/UI";
 import { GraficoEvolucao, GraficoCategorias, GraficoFornecedores, GraficoChamados } from "@/components/Graficos";
 import { moeda, competenciaAtual, competenciaLabel, deslocarCompetencia, data, dataHora } from "@/lib/format";
-import { STATUS_FATURA, STATUS_CHAMADO, PRIORIDADE, type StatusFatura, type StatusChamado, type PrioridadeChamado } from "@/lib/tipos";
+import { STATUS_FATURA, STATUS_CHAMADO, PRIORIDADE, alertaVencimento, type StatusFatura, type StatusChamado, type PrioridadeChamado } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,9 @@ export default async function Dashboard() {
       .select("*")
       .in("status", ["aguardando_documentos", "documentos_recebidos", "em_aprovacao"])
       .order("vencimento")
-      .limit(8),
+      // sem corte: os alertas contam todas as pendentes, e a lista abaixo
+      // mostra só as primeiras
+      .limit(200),
     db
       .from("chamados")
       .select("id, protocolo, titulo, solicitante_nome, solicitante_setor, status, prioridade, aberto_em")
@@ -87,6 +89,45 @@ export default async function Dashboard() {
   const aguardando = (pendentes ?? []).filter((f) => f.status === "aguardando_documentos");
   const vencidas = (pendentes ?? []).filter((f) => f.vencida);
   const totalAguardando = aguardando.reduce((s, f) => s + Number(f.valor_efetivo ?? 0), 0);
+
+  /* ---------- alertas por proximidade do vencimento ----------
+   *
+   * Três degraus, do mais grave ao mais brando. Avisar só depois do
+   * vencimento não serve para nada: quando a conta aparece, já passou.
+   */
+  const comAlerta = (pendentes ?? []).map((f) => ({
+    f,
+    a: alertaVencimento(f.vencimento, f.status),
+  }));
+
+  const degrau = (nivel: string) =>
+    comAlerta.filter((x) => x.a.nivel === nivel).sort((x, y) => y.a.peso - x.a.peso);
+
+  const DEGRAUS = [
+    { nivel: "vencida", filtro: "vencidas", cor: "#ee1c25", Icone: AlertTriangle, pulsar: true,
+      titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vencida${n > 1 ? "s" : ""} — resolver agora` },
+    { nivel: "hoje", filtro: "hoje", cor: "#ee1c25", Icone: AlertTriangle, pulsar: true,
+      titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vence${n > 1 ? "m" : ""} hoje` },
+    { nivel: "urgente", filtro: "urgente", cor: "#d95926", Icone: CalendarClock, pulsar: false,
+      titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vence${n > 1 ? "m" : ""} em até duas semanas` },
+    { nivel: "atencao", filtro: "mes", cor: "#c98500", Icone: CalendarDays, pulsar: false,
+      titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vence${n > 1 ? "m" : ""} ainda este mês` },
+  ];
+
+  const alertas = DEGRAUS.map((d) => {
+    const itens = degrau(d.nivel);
+    return {
+      chave: d.nivel,
+      nivel: d.nivel,
+      filtro: d.filtro,
+      cor: d.cor,
+      Icone: d.Icone,
+      pulsar: d.pulsar,
+      titulo: d.titulo(itens.length),
+      total: itens.reduce((s, x) => s + Number(x.f.valor_efetivo ?? 0), 0),
+      itens: itens.map((x) => `${x.f.fornecedor_nome} — ${data(x.f.vencimento)} (${x.a.rotulo})`),
+    };
+  }).filter((d) => d.itens.length > 0);
 
   return (
     <>
@@ -150,31 +191,52 @@ export default async function Dashboard() {
         />
       </div>
 
-      {/* ---------- alerta de vencidas ---------- */}
-      {vencidas.length > 0 && (
-        <div
-          className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 animate-fade-up"
-          style={{ borderColor: "rgba(238,28,37,.4)", background: "rgba(238,28,37,.09)" }}
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#ee1c25]/20 animate-pulse-ring">
-            <AlertTriangle size={19} className="text-red-300" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="font-bold text-red-100">
-              {vencidas.length} fatura{vencidas.length > 1 ? "s" : ""} vencida
-              {vencidas.length > 1 ? "s" : ""} sem documentação completa
+      {/* ---------- alertas de vencimento ---------- */}
+      {alertas.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {alertas.map((a, i) => (
+            <div
+              key={a.chave}
+              className="flex flex-wrap items-center gap-3 rounded-2xl border px-5 py-4 animate-fade-up"
+              style={{
+                borderColor: `${a.cor}66`,
+                background: `${a.cor}18`,
+                animationDelay: `${i * 70}ms`,
+              }}
+            >
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                  a.pulsar ? "animate-pulse-ring" : ""
+                }`}
+                style={{ background: `${a.cor}33` }}
+              >
+                <a.Icone size={19} style={{ color: a.cor }} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="font-bold" style={{ color: a.cor }}>
+                  {a.titulo}
+                </div>
+                <div className="mt-0.5 text-sm text-lube-100/75">
+                  {a.itens.slice(0, 3).join(" · ")}
+                  {a.itens.length > 3 && ` e mais ${a.itens.length - 3}`}
+                </div>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <div className="text-lg font-extrabold" style={{ color: a.cor }}>
+                  {moeda(a.total)}
+                </div>
+              </div>
+
+              <Link
+                href={`/faturas?filtro=${a.filtro}`}
+                className={`no-print ${a.nivel === "vencida" || a.nivel === "hoje" ? "btn-danger" : "btn-ghost"}`}
+              >
+                Ver <ArrowRight size={15} />
+              </Link>
             </div>
-            <div className="mt-0.5 text-sm text-red-200/70">
-              {vencidas
-                .slice(0, 3)
-                .map((f) => `${f.fornecedor_nome} (${data(f.vencimento)})`)
-                .join(" · ")}
-              {vencidas.length > 3 && ` e mais ${vencidas.length - 3}`}
-            </div>
-          </div>
-          <Link href="/faturas?filtro=vencidas" className="btn-danger no-print">
-            Tratar agora <ArrowRight size={15} />
-          </Link>
+          ))}
         </div>
       )}
 
@@ -223,7 +285,7 @@ export default async function Dashboard() {
             </p>
           ) : (
             <div className="space-y-2">
-              {(pendentes ?? []).map((f) => {
+              {(pendentes ?? []).slice(0, 8).map((f) => {
                 const e = STATUS_FATURA[f.status as StatusFatura];
                 return (
                   <Link
