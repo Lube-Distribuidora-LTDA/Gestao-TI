@@ -127,7 +127,7 @@ export default function AtivosPage() {
   return (
     <>
       <PageHeader
-        Icone={HardDrive}
+        icone={<HardDrive size={21} />}
         titulo="Inventário de TI"
         descricao="Equipamentos da empresa: quem usa, onde está e quanto custou."
         acoes={
@@ -139,10 +139,10 @@ export default function AtivosPage() {
       />
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard rotulo="Total cadastrado" valor={String(lista.length)} Icone={HardDrive} cor="#3987e5" />
-        <KpiCard rotulo="Em uso" valor={String(emUso)} Icone={HardDrive} cor="#199e70" atraso={60} />
-        <KpiCard rotulo="Em estoque" valor={String(estoque)} Icone={HardDrive} cor="#c98500" atraso={120} />
-        <KpiCard rotulo="Patrimônio" valor={moeda(patrimonio)} Icone={HardDrive} cor="#9085e9" atraso={180} />
+        <KpiCard rotulo="Total cadastrado" valor={String(lista.length)} icone={<HardDrive size={20} />} cor="#3987e5" />
+        <KpiCard rotulo="Em uso" valor={String(emUso)} icone={<HardDrive size={20} />} cor="#199e70" atraso={60} />
+        <KpiCard rotulo="Em estoque" valor={String(estoque)} icone={<HardDrive size={20} />} cor="#c98500" atraso={120} />
+        <KpiCard rotulo="Patrimônio" valor={moeda(patrimonio)} icone={<HardDrive size={20} />} cor="#9085e9" atraso={180} />
       </div>
 
       <div className="card mb-5 animate-fade-up">

@@ -150,7 +150,7 @@ export default function ContasPage() {
   return (
     <>
       <PageHeader
-        Icone={Wallet}
+        icone={<Wallet size={21} />}
         titulo="Contas e contratos"
         descricao="O que a TI paga todo mês. Cada conta gera uma competência por período e alimenta o dashboard de custo."
         acoes={

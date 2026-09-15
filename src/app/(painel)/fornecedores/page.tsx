@@ -119,7 +119,7 @@ export default function FornecedoresPage() {
   return (
     <>
       <PageHeader
-        Icone={Building2}
+        icone={<Building2 size={21} />}
         titulo="Fornecedores"
         descricao="Quem presta serviço para a TI. Os e-mails cadastrados aqui ensinam o robô a reconhecer as notas."
         acoes={

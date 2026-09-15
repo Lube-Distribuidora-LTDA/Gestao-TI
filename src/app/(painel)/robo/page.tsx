@@ -107,7 +107,7 @@ export default function RoboPage() {
   return (
     <>
       <PageHeader
-        Icone={Bot}
+        icone={<Bot size={21} />}
         titulo="Robô de e-mail"
         descricao="Lê o webmail, reconhece as notas dos fornecedores e cobra quem ainda não enviou."
         acoes={

@@ -20,7 +20,7 @@ export default async function FaturasPage() {
   return (
     <>
       <PageHeader
-        Icone={ReceiptText}
+        icone={<ReceiptText size={21} />}
         titulo="Faturas e notas fiscais"
         descricao="Controle das competências, documentos recebidos e cobrança dos fornecedores."
       />

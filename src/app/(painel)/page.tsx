@@ -91,7 +91,7 @@ export default async function Dashboard() {
   return (
     <>
       <PageHeader
-        Icone={TrendingUp}
+        icone={<TrendingUp size={21} />}
         titulo="Visão geral"
         descricao={`Custos, pendências e atendimento do departamento de TI — ${competenciaLabel(compAtual)}`}
         acoes={
@@ -111,7 +111,7 @@ export default async function Dashboard() {
         <KpiCard
           rotulo="Custo do mês"
           valor={moeda(custoMes)}
-          Icone={Wallet}
+          icone={<Wallet size={20} />}
           cor="#3987e5"
           variacao={variacao}
           sub={mesAnterior ? `vs ${competenciaLabel(mesAnterior.competencia)}` : "sem base anterior"}
@@ -121,7 +121,7 @@ export default async function Dashboard() {
         <KpiCard
           rotulo={`Acumulado ${compAtual.slice(0, 4)}`}
           valor={moeda(custoAno)}
-          Icone={TrendingUp}
+          icone={<TrendingUp size={20} />}
           cor="#9085e9"
           sub={`${(mensal ?? []).filter((m) => String(m.competencia).slice(0, 4) === compAtual.slice(0, 4)).length} meses`}
           atraso={60}
@@ -129,7 +129,7 @@ export default async function Dashboard() {
         <KpiCard
           rotulo="Aguardando documentos"
           valor={String(aguardando.length)}
-          Icone={FileWarning}
+          icone={<FileWarning size={20} />}
           cor="#c98500"
           sub={totalAguardando > 0 ? moeda(totalAguardando) : "nenhuma pendência"}
           atraso={120}
@@ -137,7 +137,7 @@ export default async function Dashboard() {
         <KpiCard
           rotulo="Chamados em aberto"
           valor={String(Number(k.abertos ?? 0) + Number(k.em_atendimento ?? 0))}
-          Icone={LifeBuoy}
+          icone={<LifeBuoy size={20} />}
           cor={Number(k.criticos_abertos ?? 0) > 0 ? "#e66767" : "#199e70"}
           sub={
             Number(k.criticos_abertos ?? 0) > 0

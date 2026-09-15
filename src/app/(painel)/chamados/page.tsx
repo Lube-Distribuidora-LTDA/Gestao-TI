@@ -64,7 +64,7 @@ export default function ChamadosPage() {
   return (
     <>
       <PageHeader
-        Icone={LifeBuoy}
+        icone={<LifeBuoy size={21} />}
         titulo="Chamados"
         descricao="Atendimento aos setores. Cada resposta sai por e-mail para o solicitante."
         acoes={

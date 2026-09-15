@@ -8,25 +8,30 @@ export function PageHeader({
   titulo,
   descricao,
   acoes,
-  Icone,
+  icone,
 }: {
   titulo: string;
   descricao?: string;
   acoes?: ReactNode;
-  Icone?: React.ComponentType<{ size?: number; className?: string }>;
+  /**
+   * Elemento já renderizado (ex.: `<Wallet size={21} />`), nunca o componente
+   * em si. Server Components não conseguem passar uma função como prop para
+   * um componente de cliente — só o elemento pronto atravessa essa fronteira.
+   */
+  icone?: ReactNode;
 }) {
   return (
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4 animate-fade-up">
       <div className="flex items-start gap-3.5">
-        {Icone && (
+        {icone && (
           <div
-            className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-xl"
+            className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-xl text-lube-100"
             style={{
               background: "linear-gradient(135deg, rgba(47,60,196,.9), rgba(22,34,95,.9))",
               boxShadow: "0 8px 20px -10px rgba(47,60,196,.9)",
             }}
           >
-            <Icone size={21} className="text-lube-100" />
+            {icone}
           </div>
         )}
         <div>
@@ -44,7 +49,7 @@ export function KpiCard({
   rotulo,
   valor,
   sub,
-  Icone,
+  icone,
   cor = "#4659e0",
   variacao,
   destaque,
@@ -53,7 +58,8 @@ export function KpiCard({
   rotulo: string;
   valor: string;
   sub?: string;
-  Icone: React.ComponentType<{ size?: number; className?: string }>;
+  /** Elemento já renderizado — ver a observação em PageHeader. */
+  icone: ReactNode;
   cor?: string;
   variacao?: number | null;
   destaque?: boolean;
@@ -102,10 +108,10 @@ export function KpiCard({
           </div>
         </div>
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white/90"
           style={{ background: `${cor}22`, border: `1px solid ${cor}44` }}
         >
-          <Icone size={20} className="text-white/90" />
+          {icone}
         </div>
       </div>
     </div>

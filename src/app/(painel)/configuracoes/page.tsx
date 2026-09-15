@@ -124,7 +124,7 @@ export default function ConfiguracoesPage() {
   return (
     <>
       <PageHeader
-        Icone={Settings}
+        icone={<Settings size={21} />}
         titulo="Configurações"
         descricao="Preferências do sistema, automações e categorias de custo."
         acoes={
