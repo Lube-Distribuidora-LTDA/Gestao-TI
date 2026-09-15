@@ -3,6 +3,7 @@ import {
   lerEmailsRecentes,
   classificarAnexo,
   extrairCompetencia,
+  extrairVencimento,
   extrairNumeroNota,
   imapConfigurado,
   type EmailLido,
@@ -30,6 +31,8 @@ type ContaLite = {
   palavras_chave: string[];
   exige_nota_fiscal: boolean;
   exige_fatura: boolean;
+  dia_vencimento: number | null;
+  valor_previsto: number | null;
 };
 
 export type ResultadoLeitura = {
@@ -140,6 +143,25 @@ function acharConta(email: EmailLido, contas: ContaLite[]): ContaLite | null {
   return melhorPonto > 0 ? melhor : null;
 }
 
+/**
+ * Separa o que é documento de cobrança do que é só conversa do dia a dia.
+ *
+ * O fornecedor manda pelo mesmo endereço a nota fiscal, o relatório mensal, a
+ * proposta comercial e o print do chamado. Sem este filtro, a captura de tela
+ * de um chamado de firewall entrava como documento da fatura e o relatório
+ * mensal virava anexo de cobrança.
+ */
+function pareceDocumentoFiscal(assunto: string, nomesAnexos: string[]): boolean {
+  const ctx = `${assunto} ${nomesAnexos.join(" ")}`.toLowerCase();
+
+  // assunto de atendimento ou material comercial: não é cobrança
+  if (/(chamado|ticket|#\d{4,}|relat[óo]rio|proposta|or[çc]amento|reuni[ãa]o|ata de|aditivo|contrato de presta)/i.test(ctx)) {
+    return false;
+  }
+
+  return /(nfse|nfs-e|nf-e|nfe|nota[\s_-]?fiscal|danfe|boleto|fatura|invoice|cobran[çc]a|t[íi]tulo|nf|vencim)/i.test(ctx);
+}
+
 export async function processarEmails(opts?: { dias?: number }): Promise<ResultadoLeitura> {
   const db = supabaseAdmin();
   const detalhes: ResultadoLeitura["detalhes"] = [];
@@ -173,7 +195,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       db.from("fornecedores").select("id, nome, emails_remetentes, email_cobranca").eq("ativo", true),
       db
         .from("contas")
-        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura")
+        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, dia_vencimento, valor_previsto")
         .eq("ativo", true),
     ]);
 
@@ -250,6 +272,17 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         continue;
       }
 
+      if (!pareceDocumentoFiscal(email.assunto, email.anexos.map((a) => a.nome))) {
+        registro.resultado = "ignorado_nao_fiscal";
+        await db.from("emails_processados").insert(registro);
+        detalhes.push({
+          assunto: email.assunto,
+          remetente: email.remetente,
+          resultado: `${fornecedor.nome}: anexo não é documento de cobrança`,
+        });
+        continue;
+      }
+
       // --- qual conta/contrato? ---
       const contasDoFornecedor = contas.filter((c) => c.fornecedor_id === fornecedor.id);
       const conta = acharConta(email, contasDoFornecedor);
@@ -271,8 +304,34 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         continue;
       }
 
-      // --- qual competência/fatura? ---
-      const compCitada = extrairCompetencia(`${email.assunto} ${email.textoCorpo.slice(0, 800)}`);
+      /* --- qual competência/fatura? ---
+       *
+       * O texto do e-mail manda. "NOTA FISCAL | LUBE | JULHO | FIREWALL ...
+       * Vencimento 15/08" diz o mês de referência e a data de pagamento com
+       * todas as letras — e é isso que o financeiro cobra.
+       *
+       * Quando a competência é identificada mas ainda não existe no banco, ela
+       * é criada. Antes o documento caía na competência aberta mais antiga:
+       * notas de julho e agosto foram parar todas em setembro, com vencimento
+       * errado, e uma conta venceu sem ninguém ver.
+       */
+      const contexto = `${email.assunto} ${email.textoCorpo.slice(0, 800)}`;
+      const vencCitado = extrairVencimento(contexto, email.data);
+
+      /*
+       * A competência sai da melhor pista disponível, nesta ordem:
+       *   1. o mês escrito no e-mail ("| JULHO |", "Competência 08/2026");
+       *   2. o mês do vencimento anunciado — é o mês em que a conta pesa no
+       *      caixa, que é o que o financeiro acompanha;
+       *   3. o mês em que a mensagem chegou.
+       *
+       * Sempre há uma resposta: antes, quando nenhuma competência existia no
+       * banco, o documento ficava sem lugar e a nota sumia do painel.
+       */
+      const compCitada =
+        extrairCompetencia(contexto, email.data) ??
+        (vencCitado ? `${vencCitado.slice(0, 7)}-01` : null) ??
+        `${email.data.getFullYear()}-${String(email.data.getMonth() + 1).padStart(2, "0")}-01`;
 
       let fatura: { id: string; competencia: string; numero_nota: string | null } | null = null;
 
@@ -284,6 +343,33 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
           .eq("competencia", compCitada)
           .maybeSingle();
         fatura = data;
+
+        // competência conhecida que ainda não existe: abre agora, no mês certo
+        if (!fatura) {
+          const vencimento =
+            vencCitado ??
+            (() => {
+              const [a, m] = compCitada.split("-").map(Number);
+              const dia = conta.dia_vencimento ?? 10;
+              const ultimo = new Date(a, m, 0).getDate();
+              // a nota costuma vencer no mês seguinte ao de referência
+              const prox = new Date(a, m, Math.min(dia, ultimo));
+              return prox.toISOString().slice(0, 10);
+            })();
+
+          const { data: nova } = await db
+            .from("faturas")
+            .insert({
+              conta_id: conta.id,
+              competencia: compCitada,
+              vencimento,
+              valor_previsto: conta.valor_previsto ?? 0,
+              observacoes: "Competência aberta pelo robô ao receber o documento.",
+            })
+            .select("id, competencia, numero_nota")
+            .single();
+          fatura = nova;
+        }
       }
 
       // sem competência explícita: pega a pendente mais antiga da conta
@@ -356,6 +442,10 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       // --- atualiza a fatura ---
       const agora = new Date().toISOString();
       const patch: Record<string, unknown> = {};
+
+      // o fornecedor anunciou a data de pagamento: ela vale mais que o dia
+      // fixo do contrato, desde que a competência ainda não esteja quitada
+      if (vencCitado) patch.vencimento = vencCitado;
 
       if (temNota) {
         patch.nota_fiscal_recebida_em = agora;

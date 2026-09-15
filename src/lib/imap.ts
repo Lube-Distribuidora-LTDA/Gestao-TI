@@ -220,12 +220,24 @@ export async function lerEmailsRecentes(opts: {
       if (!temAnexoRelevante(msg.bodyStructure)) continue;
 
       candidatos.push({ uid: msg.uid, remetente });
-      if (candidatos.length >= limite) break;
     }
 
     if (candidatos.length === 0) {
       return { emails: [], totalNoPeriodo, candidatos: 0, baixados: 0 };
     }
+
+    /*
+     * O corte é feito depois de olhar a janela inteira, e pelas mensagens mais
+     * recentes. Cortar durante a varredura descartava justamente as notas do
+     * mês corrente: a leitura vai da mensagem mais antiga para a mais nova, e
+     * numa janela de 60 dias o limite se esgotava antes de chegar às contas
+     * que estavam para vencer.
+     *
+     * Só a triagem é ilimitada — ela custa pouco. O corte protege a etapa cara,
+     * que é baixar o corpo de cada mensagem.
+     */
+    candidatos.sort((a, b) => b.uid - a.uid);
+    if (candidatos.length > limite) candidatos.length = limite;
 
     // ---------- fase 3: baixar o corpo apenas dos escolhidos ----------
     if (candidatos.length > 0) {
@@ -343,8 +355,23 @@ export function classificarAnexo(nomeArquivo: string, assunto: string): Classifi
   return { tipo: "outro", confianca: "baixa" };
 }
 
-/** Tenta achar a competência (mês de referência) citada no assunto/corpo. */
-export function extrairCompetencia(texto: string): string | null {
+const MESES: Record<string, number> = {
+  janeiro: 1, fevereiro: 2, marco: 3, março: 3, abril: 4,
+  maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9,
+  outubro: 10, novembro: 11, dezembro: 12,
+};
+
+const NOME_MES = "janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
+
+/**
+ * Tenta achar a competência (mês de referência) citada no assunto/corpo.
+ *
+ * `recebidoEm` serve para o caso mais comum no Brasil: o assunto traz só o
+ * nome do mês, sem ano — "NOTA FISCAL | LUBE | JULHO | FIREWALL". Aí o ano vem
+ * da data de chegada, e um mês à frente dessa data é entendido como do ano
+ * anterior (uma nota de dezembro que chega em janeiro).
+ */
+export function extrairCompetencia(texto: string, recebidoEm?: Date): string | null {
   const t = texto.toLowerCase();
 
   // 09/2026 ou 09-2026
@@ -356,17 +383,58 @@ export function extrairCompetencia(texto: string): string | null {
   if (m2) return `${m2[1]}-${String(m2[2]).padStart(2, "0")}-01`;
 
   // "setembro/2026", "setembro de 2026"
-  const meses: Record<string, string> = {
-    janeiro: "01", fevereiro: "02", marco: "03", março: "03", abril: "04",
-    maio: "05", junho: "06", julho: "07", agosto: "08", setembro: "09",
-    outubro: "10", novembro: "11", dezembro: "12",
-  };
-  const m3 = t.match(
-    /\b(janeiro|fevereiro|mar[çc]o|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s*(?:\/|de\s+|\s+)(20\d{2})\b/
-  );
+  const m3 = t.match(new RegExp(`\\b(${NOME_MES})\\s*(?:\\/|de\\s+|\\s+)(20\\d{2})\\b`));
   if (m3) {
-    const mes = meses[m3[1].replace("ç", "c")] ?? meses[m3[1]];
-    if (mes) return `${m3[2]}-${mes}-01`;
+    const mes = MESES[m3[1]];
+    if (mes) return `${m3[2]}-${String(mes).padStart(2, "0")}-01`;
+  }
+
+  // Só o nome do mês, sem ano — o ano vem de quando a mensagem chegou.
+  const m4 = t.match(new RegExp(`\\b(${NOME_MES})\\b`));
+  if (m4 && recebidoEm) {
+    const mes = MESES[m4[1]];
+    if (mes) {
+      let ano = recebidoEm.getFullYear();
+      // mês posterior à chegada só faz sentido como do ano passado
+      if (mes > recebidoEm.getMonth() + 1 + 1) ano -= 1;
+      return `${ano}-${String(mes).padStart(2, "0")}-01`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Procura a data de vencimento anunciada no assunto ou no corpo.
+ *
+ * O texto é a fonte confiável: o fornecedor escreve "Vencimento 15/09" com
+ * todas as letras. O nome do arquivo engana — a Print Solução nomeia a nota
+ * como "NFSe 934 -26 - LUBE (FIREWALL) - 09-24 .pdf" e esse "09-24" não é o
+ * vencimento, que naquele mesmo e-mail era 15/09.
+ *
+ * `referencia` completa o ano quando a data vem sem ele ("Vencimento 15/09").
+ */
+export function extrairVencimento(texto: string, referencia?: Date): string | null {
+  const t = texto.replace(/\s+/g, " ");
+
+  // "Vencimento 15/09/2026" ou "Venc.: 15-09-2026"
+  const comAno = t.match(/venc[a-zà-ú]*[\s:.\-–]{0,12}(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/i);
+  if (comAno) {
+    const [, d, m, a] = comAno;
+    return `${a}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  // "Vencimento15/09" — sem ano, e às vezes sem espaço antes do número
+  const semAno = t.match(/venc[a-zà-ú]*[\s:.\-–]{0,12}(\d{1,2})[\/.\-](\d{1,2})(?![\/.\-]?\d)/i);
+  if (semAno && referencia) {
+    const dia = Number(semAno[1]);
+    const mes = Number(semAno[2]);
+    if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+      let ano = referencia.getFullYear();
+      // vencimento muitos meses atrás da referência é do ano seguinte
+      if (mes < referencia.getMonth() + 1 - 6) ano += 1;
+      return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+    }
   }
 
   return null;
