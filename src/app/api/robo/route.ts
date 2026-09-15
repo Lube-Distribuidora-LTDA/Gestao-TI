@@ -5,7 +5,7 @@ import { testarConexaoIMAP } from "@/lib/imap";
 import { testarConexaoSMTP } from "@/lib/mailer";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 /** Aciona o robô manualmente pelo painel. */

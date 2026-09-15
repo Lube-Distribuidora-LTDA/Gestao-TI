@@ -52,12 +52,16 @@ Abra o arquivo `.env.local` na raiz do projeto e preencha os **três campos vazi
 > A `service_role` ignora todas as regras de segurança do banco. Ela só existe no
 > servidor — nunca é enviada ao navegador e nunca deve ser publicada.
 
-**Confirme os hosts da Locaweb** no painel deles. Os valores mais comuns:
+**Hosts da Locaweb** (confirmados em 15/09/2026):
 
 ```
-IMAP_HOST=imap.lube.com.br     (ou email-ssl.com.br)
-SMTP_HOST=smtp.lube.com.br     (ou email-ssl.com.br)
+IMAP_HOST=email-ssl.com.br
+SMTP_HOST=email-ssl.com.br
 ```
+
+> Não use `imap.lube.com.br` nem `smtp.lube.com.br`: o certificado do servidor é
+> `*.email-ssl.com.br` e a validação TLS falha. A alternativa seria desligar a
+> verificação do certificado, o que exporia a senha do e-mail a interceptação.
 
 ### 2.2 Rodar localmente
 
@@ -105,27 +109,42 @@ NEXT_PUBLIC_APP_URL=https://gestao-ti-lube.vercel.app
 
 ## 4. Automações agendadas (Vercel Cron)
 
-Definidas em `vercel.json` (horários em UTC; o Brasil é UTC−3):
+O plano **Hobby** permite 2 agendamentos, 1 execução diária cada, e limita as
+funções a 60 segundos. O `vercel.json` já está ajustado para isso:
 
 | Tarefa | Quando | Horário de Brasília |
 |---|---|---|
-| Ler webmail | `0 11,14,17,20 * * *` | 8h, 11h, 14h e 17h |
-| Cobrar fornecedores | `0 12 * * 1-5` | 9h, de segunda a sexta |
-| Abrir competências | `0 9 1 * *` | 6h do dia 1º |
+| Ler webmail e vincular documentos | `0 11 * * *` | 8h |
+| Abrir competências + cobrar fornecedores | `0 12 * * *` | 9h |
 
-> **Atenção ao plano da Vercel:** o plano *Hobby* permite apenas **2 cron jobs** e
-> **1 execução por dia**. Se você estiver no Hobby, reduza para dois agendamentos
-> diários ou faça upgrade para o Pro. As rotas continuam funcionando manualmente
-> pelo painel em qualquer plano.
+A abertura das competências do mês foi embutida na rotina de cobrança, já que
+sobraram só dois agendamentos. A função no banco é idempotente: rodar todo dia
+não duplica nada, ela ignora as competências que já existem.
+
+Migrando para o plano Pro, dá para separar de novo e aumentar a frequência da
+leitura (4x ao dia é confortável).
 
 As rotas `/api/cron/*` são protegidas pelo `CRON_SECRET` — a Vercel envia esse
-segredo automaticamente. Para testar à mão:
+segredo automaticamente. Para rodar à mão:
 
 ```bash
 curl "https://SEU-APP.vercel.app/api/cron/ler-emails?secret=SEU_CRON_SECRET"
 ```
 
----
+Tudo também pode ser executado pelo painel, em **Robô de e-mail**, sem depender
+do agendador.
+
+### Desempenho da varredura
+
+A caixa `cpd@lube.com.br` tem ~88 mil mensagens e recebe cerca de 50 por dia, o
+que torna inviável baixar tudo. A leitura acontece em três fases:
+
+1. o servidor IMAP devolve só os UIDs de quem veio de fornecedor cadastrado;
+2. a estrutura da mensagem diz quais trazem anexo de documento;
+3. só então o corpo é baixado.
+
+Medido em produção: **2,1 segundos** para a triagem completa de 7 dias — bem
+dentro dos 60s do plano Hobby.
 
 ## 5. Decisões de segurança
 

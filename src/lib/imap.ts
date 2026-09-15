@@ -5,7 +5,8 @@ import { simpleParser, type Attachment } from "mailparser";
  * Leitura do webmail (Locaweb) por IMAP.
  *
  * Variáveis esperadas:
- *   IMAP_HOST=imap.lube.com.br   (ou email-ssl.com.br)
+ *   IMAP_HOST=email-ssl.com.br   (o certificado da Locaweb e *.email-ssl.com.br,
+ *                                 entao imap.<dominio> quebra a validacao TLS)
  *   IMAP_PORT=993
  *   IMAP_USER=cpd@lube.com.br
  *   IMAP_PASS=<senha do e-mail>
@@ -129,14 +130,12 @@ function temAnexoRelevante(node: unknown): boolean {
  * Lê os e-mails recebidos nos últimos `dias` dias.
  *
  * A caixa da TI tem dezenas de milhares de mensagens e recebe ~50 por dia, então
- * baixar tudo é inviável dentro do tempo de uma função serverless. A varredura é
- * feita em duas fases:
+ * baixar tudo é inviável dentro dos 60s de uma função serverless. A varredura
+ * acontece em três fases, cada uma mais cara que a anterior:
  *
- *   1. busca só os envelopes (remetente, assunto, estrutura) — rápido e leve;
- *   2. baixa o corpo completo apenas dos e-mails que vieram de um fornecedor
- *      cadastrado E que têm anexo de documento.
- *
- * Na prática isso reduz centenas de downloads para meia dúzia.
+ *   1. o servidor IMAP devolve só os UIDs de quem veio de fornecedor cadastrado;
+ *   2. desses, olhamos a estrutura para saber quais trazem anexo de documento;
+ *   3. só então o corpo completo é baixado — normalmente meia dúzia de e-mails.
  *
  * Nada é marcado como lido — a caixa fica exatamente como estava.
  */
@@ -178,16 +177,34 @@ export async function lerEmailsRecentes(opts: {
   try {
     const desde = new Date(Date.now() - opts.dias * 86_400_000);
 
-    // ---------- fase 1: triagem pelos envelopes ----------
-    for await (const msg of client.fetch(
-      { since: desde },
-      { uid: true, envelope: true, bodyStructure: true }
-    )) {
-      totalNoPeriodo++;
+    // ---------- fase 1: o servidor IMAP filtra por remetente ----------
+    // Pedir "só o que veio destes endereços" evita trazer os ~50 e-mails
+    // diários da caixa para dentro da função. `from` casa por substring,
+    // então "@fornecedor.com.br" e o endereço completo funcionam igual.
+    const termos = [...enderecos, ...[...dominios].map((d) => "@" + d)];
 
+    const uidsFiltrados = await client.search({
+      since: desde,
+      or: termos.map((t) => ({ from: t })),
+    });
+
+    const uidsPeriodo = uidsFiltrados || [];
+    totalNoPeriodo = uidsPeriodo.length;
+
+    if (uidsPeriodo.length === 0) {
+      return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0 };
+    }
+
+    // ---------- fase 2: quem tem anexo de documento? ----------
+    for await (const msg of client.fetch(
+      uidsPeriodo,
+      { uid: true, envelope: true, bodyStructure: true },
+      { uid: true }
+    )) {
       const from = msg.envelope?.from?.[0];
       const remetente = (from?.address ?? "").toLowerCase().trim();
 
+      // o SEARCH casa por substring; conferimos o endereço de verdade
       if (!interessa(remetente)) continue;
       if (!temAnexoRelevante(msg.bodyStructure)) continue;
 
@@ -195,7 +212,7 @@ export async function lerEmailsRecentes(opts: {
       if (candidatos.length >= limite) break;
     }
 
-    // ---------- fase 2: baixar só os escolhidos ----------
+    // ---------- fase 3: baixar o corpo apenas dos escolhidos ----------
     if (candidatos.length > 0) {
       const uids = candidatos.map((c) => c.uid);
 

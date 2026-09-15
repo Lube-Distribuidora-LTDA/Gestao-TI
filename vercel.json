@@ -3,23 +3,22 @@
   "crons": [
     {
       "path": "/api/cron/ler-emails",
-      "schedule": "0 11,14,17,20 * * *"
+      "schedule": "0 11 * * *"
     },
     {
       "path": "/api/cron/cobrar",
-      "schedule": "0 12 * * 1-5"
-    },
-    {
-      "path": "/api/cron/gerar-faturas",
-      "schedule": "0 9 1 * *"
+      "schedule": "0 12 * * *"
     }
   ],
   "functions": {
     "src/app/api/cron/**/*.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
     },
     "src/app/api/robo/route.ts": {
-      "maxDuration": 300
+      "maxDuration": 60
+    },
+    "src/app/api/documentos/route.ts": {
+      "maxDuration": 60
     }
   }
 }

@@ -3,7 +3,7 @@ import { processarEmails } from "@/lib/robo";
 import { cronAutorizado } from "@/lib/cron";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
 /** Varre o webmail e vincula notas/faturas às competências abertas. */
