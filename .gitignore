@@ -7,11 +7,15 @@ build/
 
 # variáveis de ambiente — nunca versionar
 .env
-.env.local
 .env*.local
+.env*
+# ...mas o modelo sem valores deve ficar no repositório
+!.env.example
 
 npm-debug.log*
 yarn-error.log*
-.vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# vínculo local com a Vercel
+.vercel

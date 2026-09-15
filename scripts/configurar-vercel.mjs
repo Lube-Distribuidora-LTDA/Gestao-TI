@@ -28,10 +28,18 @@ const SOBRESCREVER = {
   NEXT_PUBLIC_APP_URL: process.env.URL_PRODUCAO ?? "https://gestao-ti-ruddy.vercel.app",
 };
 
+/**
+ * Variáveis que a própria Vercel gerencia e que nunca devem ser cadastradas
+ * à mão. O `vercel link` grava VERCEL_OIDC_TOKEN no .env.local para uso
+ * local; ele é reemitido a cada execução na nuvem, então fixá-lo como
+ * variável de ambiente deixaria um token velho no lugar do válido.
+ */
+const IGNORAR = new Set(["VERCEL_OIDC_TOKEN", "VERCEL_URL", "VERCEL_ENV", "VERCEL_REGION"]);
+
 const env = {};
 for (const linha of fs.readFileSync(ARQUIVO, "utf8").split(/\r?\n/)) {
   const m = linha.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-  if (m) env[m[1]] = m[2].trim();
+  if (m && !IGNORAR.has(m[1])) env[m[1]] = m[2].trim();
 }
 
 Object.assign(env, SOBRESCREVER);
