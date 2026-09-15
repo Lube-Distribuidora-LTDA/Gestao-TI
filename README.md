@@ -79,18 +79,31 @@ Só siga adiante quando os dois derem OK — é aqui que erro de host ou senha a
 
 ### 2.4 Publicar na Vercel
 
+O projeto **gestao-ti** já está criado e ligado a este repositório
+(time `LUBE DISTRIBUIDORA LTDA`), então todo push na branch `main` publica
+sozinho. Falta só cadastrar as variáveis de ambiente, uma única vez:
+
 ```bash
-npx vercel
+npx vercel login
+npx vercel link
+node scripts/configurar-vercel.mjs
 ```
 
-Depois, em **Vercel → Settings → Environment Variables**, cadastre **todas** as
-variáveis do `.env.local`, e ajuste:
+O script lê o `.env.local` e cadastra tudo nos três ambientes, sem imprimir
+nenhum valor na tela. Ele já troca o `NEXT_PUBLIC_APP_URL` para o domínio de
+produção — sem isso os links dos e-mails apontariam para `localhost`.
 
-```
-NEXT_PUBLIC_APP_URL=https://gestao-ti-lube.vercel.app
+Se o domínio final for diferente de `https://gestao-ti.vercel.app`:
+
+```bash
+URL_PRODUCAO=https://seu-dominio.vercel.app node scripts/configurar-vercel.mjs
 ```
 
-(sem isso os links dos e-mails apontam para `localhost`)
+Depois, publique:
+
+```bash
+npx vercel --prod
+```
 
 ---
 
