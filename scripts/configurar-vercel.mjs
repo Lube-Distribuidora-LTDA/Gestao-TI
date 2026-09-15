@@ -25,7 +25,7 @@ if (!fs.existsSync(ARQUIVO)) {
 /** Variáveis que NÃO devem ir para a Vercel com o valor local. */
 const SOBRESCREVER = {
   // em produção os links dos e-mails precisam apontar para o domínio real
-  NEXT_PUBLIC_APP_URL: process.env.URL_PRODUCAO ?? "https://gestao-ti-lube-distribuidora-ltda.vercel.app",
+  NEXT_PUBLIC_APP_URL: process.env.URL_PRODUCAO ?? "https://gestao-ti-ruddy.vercel.app",
 };
 
 const env = {};
