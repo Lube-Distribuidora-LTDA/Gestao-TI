@@ -77,7 +77,17 @@ function acharFornecedor(remetente: string, fornecedores: Fornecedor[]): Fornece
   return null;
 }
 
-/** Entre as contas de um fornecedor, descobre a que o e-mail se refere. */
+/**
+ * Entre as contas de um fornecedor, descobre a que o e-mail se refere.
+ *
+ * Cada conta é pontuada pelas palavras-chave encontradas no assunto, no corpo
+ * e no nome dos anexos. Duas regras evitam os enganos mais comuns:
+ *
+ * - termo iniciado por "!" é **negativo**: se aparecer, a conta é descartada.
+ *   É o que separa "LUBE RJ | FIREWALL" de "LUBE | FIREWALL", já que a
+ *   palavra "firewall" está nos dois;
+ * - termos mais longos valem mais, porque são mais específicos.
+ */
 function acharConta(email: EmailLido, contas: ContaLite[]): ContaLite | null {
   if (contas.length === 0) return null;
   if (contas.length === 1) return contas[0];
@@ -90,19 +100,37 @@ function acharConta(email: EmailLido, contas: ContaLite[]): ContaLite | null {
     .join(" ")
     .toLowerCase();
 
-  // pontua cada conta por palavras-chave e identificador encontrados
   let melhor: ContaLite | null = null;
   let melhorPonto = 0;
 
   for (const c of contas) {
     let pontos = 0;
+    let desqualificada = false;
+
     for (const p of c.palavras_chave ?? []) {
-      const termo = p.toLowerCase().trim();
-      if (termo.length >= 3 && ctx.includes(termo)) pontos += 2;
+      const bruto = p.toLowerCase().trim();
+      if (!bruto) continue;
+
+      if (bruto.startsWith("!")) {
+        const proibido = bruto.slice(1).trim();
+        if (proibido.length >= 3 && ctx.includes(proibido)) {
+          desqualificada = true;
+          break;
+        }
+        continue;
+      }
+
+      // termos curtos demais casam com pedaços de outras palavras
+      if (bruto.length >= 4 && ctx.includes(bruto)) pontos += bruto.length;
     }
-    if (c.identificador && c.identificador.length >= 4) {
-      if (ctx.includes(c.identificador.toLowerCase())) pontos += 4;
+
+    if (desqualificada) continue;
+
+    // o identificador do contrato é a pista mais forte que existe
+    if (c.identificador && c.identificador.length >= 4 && ctx.includes(c.identificador.toLowerCase())) {
+      pontos += 30;
     }
+
     if (pontos > melhorPonto) {
       melhorPonto = pontos;
       melhor = c;

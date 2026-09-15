@@ -133,8 +133,9 @@ function temAnexoRelevante(node: unknown): boolean {
  * baixar tudo é inviável dentro dos 60s de uma função serverless. A varredura
  * acontece em três fases, cada uma mais cara que a anterior:
  *
- *   1. o servidor IMAP devolve só os UIDs de quem veio de fornecedor cadastrado;
- *   2. desses, olhamos a estrutura para saber quais trazem anexo de documento;
+ *   1. percorremos as últimas mensagens que chegaram e cortamos por data;
+ *   2. das que vieram de fornecedor cadastrado, olhamos a estrutura para saber
+ *      quais trazem anexo de documento;
  *   3. só então o corpo completo é baixado — normalmente meia dúzia de e-mails.
  *
  * Nada é marcado como lido — a caixa fica exatamente como estava.
@@ -177,39 +178,53 @@ export async function lerEmailsRecentes(opts: {
   try {
     const desde = new Date(Date.now() - opts.dias * 86_400_000);
 
-    // ---------- fase 1: o servidor IMAP filtra por remetente ----------
-    // Pedir "só o que veio destes endereços" evita trazer os ~50 e-mails
-    // diários da caixa para dentro da função. `from` casa por substring,
-    // então "@fornecedor.com.br" e o endereço completo funcionam igual.
-    const termos = [...enderecos, ...[...dominios].map((d) => "@" + d)];
+    /*
+     * ---------- fase 1: pegar as mensagens que chegaram por último ----------
+     *
+     * Não usamos `SEARCH SINCE`: o servidor da Locaweb responde a esse
+     * critério com mensagens fora do período pedido (uma busca por "últimos
+     * 50 dias" devolveu correspondência de sete meses antes, e nenhuma das
+     * notas recentes). Como o resultado não é confiável, percorremos a caixa
+     * pelo fim — as últimas mensagens em ordem de chegada — e aplicamos o
+     * corte de data aqui, pela data interna de cada mensagem.
+     *
+     * A janela é dimensionada pelo volume da caixa (cerca de 50 mensagens por
+     * dia), com folga e um teto para não estourar o tempo da função.
+     */
+    const total = client.mailbox && typeof client.mailbox === "object"
+      ? (client.mailbox as { exists: number }).exists
+      : 0;
 
-    const uidsFiltrados = await client.search({
-      since: desde,
-      or: termos.map((t) => ({ from: t })),
-    });
-
-    const uidsPeriodo = uidsFiltrados || [];
-    totalNoPeriodo = uidsPeriodo.length;
-
-    if (uidsPeriodo.length === 0) {
+    if (total === 0) {
       return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0 };
     }
 
-    // ---------- fase 2: quem tem anexo de documento? ----------
+    const janela = Math.min(Math.max(opts.dias * 120, 300), 2000);
+    const inicio = Math.max(1, total - janela + 1);
+
     for await (const msg of client.fetch(
-      uidsPeriodo,
-      { uid: true, envelope: true, bodyStructure: true },
-      { uid: true }
+      `${inicio}:${total}`,
+      { uid: true, envelope: true, bodyStructure: true, internalDate: true }
     )) {
+      // a data interna é quando a mensagem chegou; o cabeçalho Date é
+      // informado por quem envia e vem forjado com frequência em spam
+      const chegada = msg.internalDate ? new Date(msg.internalDate) : null;
+      if (chegada && chegada < desde) continue;
+
+      totalNoPeriodo++;
+
       const from = msg.envelope?.from?.[0];
       const remetente = (from?.address ?? "").toLowerCase().trim();
 
-      // o SEARCH casa por substring; conferimos o endereço de verdade
       if (!interessa(remetente)) continue;
       if (!temAnexoRelevante(msg.bodyStructure)) continue;
 
       candidatos.push({ uid: msg.uid, remetente });
       if (candidatos.length >= limite) break;
+    }
+
+    if (candidatos.length === 0) {
+      return { emails: [], totalNoPeriodo, candidatos: 0, baixados: 0 };
     }
 
     // ---------- fase 3: baixar o corpo apenas dos escolhidos ----------
