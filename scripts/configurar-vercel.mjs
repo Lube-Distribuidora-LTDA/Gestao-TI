@@ -7,7 +7,8 @@
  *   3. node scripts/configurar-vercel.mjs
  *
  * Nenhum valor é impresso na tela — o script só mostra o nome de cada
- * variável e se ela foi cadastrada.
+ * variável e se ela foi cadastrada. No fim, ele confere na Vercel o que
+ * realmente entrou, em vez de confiar no código de saída da CLI.
  */
 
 import fs from "node:fs";
@@ -45,8 +46,10 @@ for (const linha of fs.readFileSync(ARQUIVO, "utf8").split(/\r?\n/)) {
 Object.assign(env, SOBRESCREVER);
 
 const AMBIENTES = ["production", "preview", "development"];
-let ok = 0;
-let falhas = 0;
+
+function vercel(args) {
+  return spawnSync("npx", ["vercel", ...args], { encoding: "utf8", shell: true });
+}
 
 console.log(`\nCadastrando ${Object.keys(env).length} variáveis na Vercel...\n`);
 
@@ -56,35 +59,45 @@ for (const [chave, valor] of Object.entries(env)) {
     continue;
   }
 
-  let sucessos = 0;
+  /*
+   * O tipo precisa ser explícito. A CLI se recusa a adivinhar quando o nome
+   * parece secreto mas tem prefixo público (NEXT_PUBLIC_..._KEY, por
+   * exemplo): nesse caso ela abre um prompt e, sem terminal interativo,
+   * encerra sem cadastrar — ainda assim devolvendo código de saída zero.
+   * Foi exatamente o que aconteceu com NEXT_PUBLIC_SUPABASE_ANON_KEY.
+   */
+  const tipo = chave.startsWith("NEXT_PUBLIC_") ? "config" : "secret";
+
   for (const ambiente of AMBIENTES) {
     // remove antes de adicionar, para o script ser repetível sem dar erro
-    spawnSync("npx", ["vercel", "env", "rm", chave, ambiente, "--yes"], {
-      input: "",
-      encoding: "utf8",
-      shell: true,
-    });
-
-    const r = spawnSync("npx", ["vercel", "env", "add", chave, ambiente], {
-      input: valor + "\n",
-      encoding: "utf8",
-      shell: true,
-    });
-
-    if (r.status === 0) sucessos++;
+    vercel(["env", "rm", chave, ambiente, "--yes"]);
+    vercel(["env", "add", chave, ambiente, "--type", tipo, "--value", valor, "--yes"]);
   }
 
-  if (sucessos === AMBIENTES.length) {
-    console.log(`  ✓ ${chave.padEnd(32)} (${valor.length} caracteres)`);
-    ok++;
-  } else {
-    console.log(`  ✗ ${chave.padEnd(32)} falhou em ${AMBIENTES.length - sucessos} ambiente(s)`);
-    falhas++;
+  console.log(`  · ${chave.padEnd(32)} enviado (${valor.length} caracteres, ${tipo})`);
+}
+
+/* ---------- conferência: o que de fato está lá? ---------- */
+console.log(`\nConferindo o que entrou em production...\n`);
+
+const lista = vercel(["env", "ls", "production"]).stdout ?? "";
+const faltando = Object.keys(env).filter(
+  (k) => env[k] && !new RegExp(`\\b${k}\\b`).test(lista)
+);
+
+if (faltando.length === 0) {
+  console.log(`  ✓ todas as ${Object.keys(env).filter((k) => env[k]).length} variáveis estão cadastradas.`);
+} else {
+  console.log(`  ✗ NÃO foram cadastradas: ${faltando.join(", ")}`);
+  console.log(`\n  Cadastre à mão com:`);
+  for (const k of faltando) {
+    const tipo = k.startsWith("NEXT_PUBLIC_") ? "config" : "secret";
+    console.log(`    npx vercel env add ${k} production --type ${tipo} --value "<valor>" --yes`);
   }
 }
 
-console.log(`\n${ok} variável(is) cadastrada(s), ${falhas} com falha.`);
 console.log(`\nATENÇÃO: confira NEXT_PUBLIC_APP_URL — está como "${SOBRESCREVER.NEXT_PUBLIC_APP_URL}".`);
 console.log(`Se o domínio real for outro, rode de novo com:`);
-console.log(`  URL_PRODUCAO=https://seu-dominio.vercel.app node scripts/configurar-vercel.mjs\n`);
-console.log(`Depois publique com:  npx vercel --prod\n`);
+console.log(`  URL_PRODUCAO=https://seu-dominio.vercel.app node scripts/configurar-vercel.mjs`);
+console.log(`\nAs variáveis NEXT_PUBLIC_* são embutidas durante o build, então`);
+console.log(`é preciso um deploy novo para valerem:  npx vercel --prod\n`);
