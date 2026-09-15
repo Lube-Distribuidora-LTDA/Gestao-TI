@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ReceiptText, Wallet, Building2, LifeBuoy, HardDrive,
   Bot, Settings, LogOut, Menu, X, ChevronRight, ExternalLink,
@@ -15,16 +15,37 @@ type Item = { href: string; rotulo: string; Icone: typeof LayoutDashboard; badge
 export function Shell({
   children,
   usuario,
-  pendencias,
 }: {
   children: React.ReactNode;
   usuario: { nome: string; email: string; papel: string };
-  pendencias: { faturas: number; chamados: number };
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
   const [saindo, setSaindo] = useState(false);
+
+  /*
+   * Os números dos selos são buscados aqui, já com a tela desenhada. Quando
+   * viviam no layout do servidor, toda navegação esperava duas consultas ao
+   * banco antes de mostrar qualquer coisa — e o banco fica em outra região.
+   * Aqui eles chegam atrasados alguns instantes, sem travar nada.
+   */
+  const [pendencias, setPendencias] = useState({ faturas: 0, chamados: 0 });
+
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/pendencias")
+      .then((r) => r.json())
+      .then((d) => {
+        if (vivo) setPendencias({ faturas: d.faturas ?? 0, chamados: d.chamados ?? 0 });
+      })
+      .catch(() => {
+        /* contador é enfeite: sem ele o menu funciona igual */
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [pathname]);
 
   const grupos: Array<{ titulo: string; itens: Item[] }> = [
     {
@@ -107,6 +128,7 @@ export function Shell({
                       <Link
                         key={href}
                         href={href}
+                        prefetch
                         onClick={() => setAberto(false)}
                         className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold
                                     transition-all duration-200
