@@ -152,12 +152,33 @@ do agendador.
 A caixa `cpd@lube.com.br` tem ~88 mil mensagens e recebe cerca de 50 por dia, o
 que torna inviável baixar tudo. A leitura acontece em três fases:
 
-1. o servidor IMAP devolve só os UIDs de quem veio de fornecedor cadastrado;
-2. a estrutura da mensagem diz quais trazem anexo de documento;
-3. só então o corpo é baixado.
+1. percorremos as últimas mensagens que chegaram e cortamos por data;
+2. das que vieram de fornecedor cadastrado, olhamos a estrutura para saber
+   quais trazem anexo de documento;
+3. só então o corpo completo é baixado.
 
-Medido em produção: **2,1 segundos** para a triagem completa de 7 dias — bem
-dentro dos 60s do plano Hobby.
+O `SEARCH SINCE` do IMAP **não é usado de propósito**: o servidor da Locaweb
+responde a esse critério com mensagens fora do período pedido — uma busca por
+"últimos 50 dias" devolveu correspondência de sete meses antes e nenhuma das
+notas recentes.
+
+### Região das funções
+
+O `vercel.json` fixa `"regions": ["gru1"]` (São Paulo). Sem isso a Vercel usa
+`iad1` (Washington) por padrão, e cada consulta ao Supabase — que está em
+`sa-east-1`, São Paulo — atravessava o continente e voltava.
+
+O efeito medido em produção foi grande:
+
+| Tela | iad1 (Washington) | gru1 (São Paulo) |
+|---|---|---|
+| Dashboard | 0,81 – 3,42s | 0,18 – 0,48s |
+| Faturas | 0,64 – 1,14s | 0,17 – 0,24s |
+| Contas | 0,42 – 0,70s | 0,13 – 0,20s |
+
+Confira no cabeçalho `x-vercel-id` da resposta: o segundo campo é onde a função
+rodou (`gru1::gru1::...` está certo; `gru1::iad1::...` significa que a
+configuração não pegou).
 
 ## 5. Decisões de segurança
 
