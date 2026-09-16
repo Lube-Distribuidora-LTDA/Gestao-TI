@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from "nodemailer";
+import { guardarEmEnviados } from "./copia-enviados";
 
 /**
  * Envio de e-mail via SMTP da Locaweb.
@@ -48,7 +49,9 @@ export function remetente(): string {
   return `"${nome}" <${email}>`;
 }
 
-export type ResultadoEnvio = { ok: true; messageId: string } | { ok: false; erro: string };
+export type ResultadoEnvio =
+  | { ok: true; messageId: string; copiaEmEnviados: boolean }
+  | { ok: false; erro: string };
 
 export async function enviarEmail(opts: {
   para: string;
@@ -59,7 +62,7 @@ export async function enviarEmail(opts: {
   cc?: string;
 }): Promise<ResultadoEnvio> {
   try {
-    const info = await getTransporter().sendMail({
+    const mensagem = {
       from: remetente(),
       to: opts.para,
       cc: opts.cc,
@@ -67,8 +70,37 @@ export async function enviarEmail(opts: {
       subject: opts.assunto,
       html: opts.html,
       text: opts.texto ?? htmlParaTexto(opts.html),
+    };
+
+    /*
+     * A mensagem é montada uma vez e usada duas: enviada ao destinatário e
+     * arquivada em Enviados. Assim a cópia é byte a byte o que o fornecedor
+     * recebeu, com o mesmo Message-ID — e não uma reconstrução parecida.
+     */
+    const { default: MailComposer } = await import("nodemailer/lib/mail-composer/index.js");
+    const bruta: Buffer = await new MailComposer(mensagem).compile().build();
+
+    const info = await getTransporter().sendMail({
+      raw: bruta,
+      envelope: {
+        from: process.env.SMTP_USER,
+        to: [opts.para, ...(opts.cc ? [opts.cc] : [])],
+      },
     });
-    return { ok: true, messageId: info.messageId };
+
+    /*
+     * O SMTP só transmite. Sem este arquivamento a cobrança saía de verdade,
+     * mas não aparecia no webmail — e dava a impressão de que nada tinha sido
+     * enviado. A cópia é um extra: se falhar, o envio continua válido.
+     */
+    let copiaEmEnviados = false;
+    try {
+      copiaEmEnviados = await guardarEmEnviados(bruta);
+    } catch {
+      /* a mensagem já partiu; a cópia é secundária */
+    }
+
+    return { ok: true, messageId: info.messageId, copiaEmEnviados };
   } catch (e) {
     return { ok: false, erro: e instanceof Error ? e.message : String(e) };
   }
@@ -78,7 +110,7 @@ export async function enviarEmail(opts: {
 export async function testarConexaoSMTP(): Promise<ResultadoEnvio> {
   try {
     await getTransporter().verify();
-    return { ok: true, messageId: "conexao-ok" };
+    return { ok: true, messageId: "conexao-ok", copiaEmEnviados: false };
   } catch (e) {
     return { ok: false, erro: e instanceof Error ? e.message : String(e) };
   }
