@@ -68,7 +68,8 @@ export async function GET(req: Request) {
     const hoje = new Date();
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-    q = q.not("status", "in", "(paga,cancelada)");
+    // assinada e entregue é fatura encerrada: não entra em alerta de vencimento
+    q = q.not("status", "in", "(paga,entregue_contabilidade,cancelada)");
 
     if (filtro === "hoje") {
       q = q.eq("vencimento", iso(hoje));

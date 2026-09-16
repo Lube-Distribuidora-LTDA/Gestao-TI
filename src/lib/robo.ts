@@ -375,7 +375,36 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
       let fatura: { id: string; competencia: string; numero_nota: string | null } | null = null;
 
-      if (compCitada) {
+      /*
+       * Reenvio do mesmo documento não abre outra fatura.
+       *
+       * A Kaizen emite a nota pelo Omie e, semanas depois, o financeiro
+       * reencaminha a mesma mensagem à mão. Como cada cópia chegava num dia
+       * diferente e nenhuma delas diz a competência, cada uma era datada pela
+       * própria chegada e ganhava um mês só seu: a NF 1428 apareceu duas vezes
+       * no painel, mesmo valor e mesmo vencimento, como se fossem duas contas
+       * a pagar.
+       *
+       * O número da nota é o que identifica o documento. Se ele já está numa
+       * fatura desta conta, é a mesma cobrança — vale o primeiro envio, que é o
+       * que chegou no prazo e já foi conferido.
+       */
+      const numeroLido =
+        doc.numeroNota ??
+        extrairNumeroNota(`${email.assunto} ${email.anexos.map((a) => a.nome).join(" ")}`);
+
+      if (numeroLido) {
+        const { data } = await db
+          .from("faturas")
+          .select("id, competencia, numero_nota")
+          .eq("conta_id", conta.id)
+          .eq("numero_nota", numeroLido)
+          .order("criado_em", { ascending: true })
+          .limit(1);
+        fatura = data?.[0] ?? null;
+      }
+
+      if (!fatura && compCitada) {
         const { data } = await db
           .from("faturas")
           .select("id, competencia, numero_nota")
@@ -444,6 +473,18 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
       for (const anexo of email.anexos) {
         const cls = classificarAnexo(anexo.nome, email.assunto);
+
+        /* O primeiro envio já trouxe este arquivo: o reencaminhamento não
+           precisa empilhar uma segunda cópia na mesma fatura. */
+        const { data: jaAnexado } = await db
+          .from("documentos")
+          .select("id")
+          .eq("fatura_id", fatura.id)
+          .eq("nome_arquivo", anexo.nome)
+          .maybeSingle();
+
+        if (jaAnexado) continue;
+
         const nomeSeguro = anexo.nome.replace(/[^\w.\-]/g, "_").slice(-120);
         const path = `${fornecedor.id}/${fatura.id}/${Date.now()}-${nomeSeguro}`;
 
@@ -478,6 +519,25 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         } else if (cls.confianca === "baixa") {
           temDuvida = true;
         }
+      }
+
+      /*
+       * Todos os anexos já estavam na fatura: isto é o reenvio de um documento
+       * que o painel recebeu antes. Nada a alterar — mexer aqui só arriscaria
+       * trocar o vencimento já conferido pelo que a segunda cópia sugere.
+       */
+      if (salvos === 0) {
+        registro.fatura_id = fatura.id;
+        registro.anexos_salvos = 0;
+        registro.resultado = "reenvio";
+        await db.from("emails_processados").insert(registro);
+
+        detalhes.push({
+          assunto: email.assunto,
+          remetente: email.remetente,
+          resultado: `${fornecedor.nome} / ${conta.descricao}: reenvio do que já estava no painel`,
+        });
+        continue;
       }
 
       // --- atualiza a fatura ---
@@ -632,7 +692,8 @@ export async function executarCobrancas(opts?: {
     let query = db
       .from("vw_faturas_detalhe")
       .select("*")
-      .not("status", "in", "(paga,cancelada)");
+      // nunca cobrar o que já foi assinado e entregue — nem pelo botão manual
+      .not("status", "in", "(paga,entregue_contabilidade,cancelada)");
 
     if (opts?.forcarFaturaId) {
       query = query.eq("id", opts.forcarFaturaId);
