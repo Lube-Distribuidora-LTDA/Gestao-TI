@@ -4,10 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Search, RefreshCw, CalendarPlus, FileCheck2, Send, Printer,
-  AlertTriangle, Filter, Eye, Loader2,
+  AlertTriangle, Filter, Eye, Loader2, MessageCircle,
 } from "lucide-react";
 import { Badge, Modal, Vazio, Aviso, useAviso, BotaoAcao } from "@/components/UI";
-import { moeda, data, competenciaLabel, competenciaAtual } from "@/lib/format";
+import {
+  moeda, data, competenciaLabel, competenciaAtual, linkWhatsApp, competenciaExtenso,
+} from "@/lib/format";
 import { STATUS_FATURA, alertaVencimento, type StatusFatura } from "@/lib/tipos";
 import { DetalheFatura } from "./DetalheFatura";
 
@@ -33,6 +35,8 @@ export type FaturaLinha = {
   fornecedor_id: string;
   fornecedor_nome: string;
   email_cobranca: string | null;
+  canal_cobranca: "email" | "whatsapp";
+  fornecedor_whatsapp: string | null;
   categoria_id: string | null;
   categoria_nome: string | null;
   categoria_cor: string | null;
@@ -408,7 +412,20 @@ export function TelaFaturas({
                           dito na coluna Situação — repetir em amarelo poluía a
                           leitura e dava a impressão de documento existente. */}
                       <div className="flex items-center justify-center gap-1.5">
-                        {!f.nota_fiscal_recebida_em &&
+                        {/*
+                          Fornecedor que só atende no WhatsApp não tem cobrança
+                          automática: enquanto o documento não chega, o lugar do
+                          traço é ocupado pelo botão que leva direto à conversa,
+                          com a mensagem já escrita. Quando a nota chega, os
+                          selos voltam a valer — o botão só existe para pedir o
+                          que ainda falta.
+                        */}
+                        {f.canal_cobranca === "whatsapp" &&
+                          !f.nota_fiscal_recebida_em &&
+                          !f.fatura_recebida_em && <BotaoWhatsApp fatura={f} />}
+
+                        {!(f.canal_cobranca === "whatsapp") &&
+                          !f.nota_fiscal_recebida_em &&
                           !f.fatura_recebida_em &&
                           !f.precisa_revisao && (
                             <span className="text-xs text-lube-200/30">—</span>
@@ -477,6 +494,63 @@ export function TelaFaturas({
 
       {aviso && <Aviso tipo={aviso.tipo} mensagem={aviso.mensagem} aoFechar={limpar} />}
     </>
+  );
+}
+
+/**
+ * Atalho para pedir a nota no WhatsApp.
+ *
+ * Existe para os fornecedores que não respondem por e-mail: o robô não tem o
+ * que cobrar, e sem isto a linha ficaria só com um traço, sem dizer o que
+ * fazer. A mensagem já vai escrita com contrato, competência e vencimento —
+ * é o que evita ter que abrir a fatura para saber o que pedir.
+ */
+function BotaoWhatsApp({ fatura }: { fatura: FaturaLinha }) {
+  const falta = [
+    fatura.exige_nota_fiscal && !fatura.nota_fiscal_recebida_em ? "a nota fiscal" : null,
+    fatura.exige_fatura && !fatura.fatura_recebida_em ? "o boleto" : null,
+  ].filter(Boolean);
+
+  const mensagem = [
+    "Olá! Aqui é do setor de TI da Lube Distribuidora.",
+    "",
+    `Poderia nos enviar ${falta.length ? falta.join(" e ") : "a nota fiscal e o boleto"} ` +
+      `referente a ${fatura.conta_descricao} — ${competenciaExtenso(fatura.competencia)}, ` +
+      `com vencimento em ${data(fatura.vencimento)}?`,
+    "",
+    "Obrigado!",
+  ].join("\n");
+
+  const href = linkWhatsApp(fatura.fornecedor_whatsapp, mensagem);
+
+  if (!href) {
+    return (
+      <span
+        title="Cadastre o WhatsApp deste fornecedor na aba Fornecedores"
+        className="text-[10px] font-semibold text-amber-300/80"
+      >
+        sem WhatsApp
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title={`Pedir ${falta.join(" e ") || "os documentos"} no WhatsApp de ${fatura.fornecedor_nome}`}
+      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-bold transition hover:brightness-125"
+      style={{
+        borderColor: "rgba(37,211,102,.5)",
+        background: "rgba(37,211,102,.14)",
+        color: "#7ee6a8",
+      }}
+    >
+      <MessageCircle size={11} />
+      Pedir no WhatsApp
+    </a>
   );
 }
 

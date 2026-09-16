@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Plus, Search, Pencil, Trash2, Mail, Phone, Loader2, AtSign } from "lucide-react";
+import {
+  Building2, Plus, Search, Pencil, Trash2, Mail, Phone, Loader2, AtSign, MessageCircle,
+} from "lucide-react";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge } from "@/components/UI";
-import { cnpjFmt, moeda } from "@/lib/format";
+import { cnpjFmt, moeda, telFmt } from "@/lib/format";
 
 type Fornecedor = {
   id: string;
@@ -17,12 +19,15 @@ type Fornecedor = {
   site: string | null;
   observacoes: string | null;
   ativo: boolean;
+  canal_cobranca: "email" | "whatsapp";
+  whatsapp: string | null;
 };
 
 const VAZIO = {
   nome: "", razao_social: "", cnpj: "", email_cobranca: "",
   emails_remetentes: "", telefone: "", contato_nome: "", site: "",
   observacoes: "", ativo: true,
+  canal_cobranca: "email" as "email" | "whatsapp", whatsapp: "",
 };
 
 export default function FornecedoresPage() {
@@ -66,6 +71,8 @@ export default function FornecedoresPage() {
       site: f.site ?? "",
       observacoes: f.observacoes ?? "",
       ativo: f.ativo,
+      canal_cobranca: f.canal_cobranca ?? "email",
+      whatsapp: f.whatsapp ?? "",
     });
     setEditando(f.id);
     setModal(true);
@@ -82,6 +89,10 @@ export default function FornecedoresPage() {
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean),
       cnpj: form.cnpj.replace(/\D/g, "") || null,
+      /* Guardado só com dígitos: é assim que o link wa.me espera o número,
+         e assim "(27) 99999-9999" e "27999999999" viram a mesma coisa. */
+      whatsapp: form.whatsapp.replace(/\D/g, "") || null,
+      email_cobranca: form.email_cobranca.trim() || null,
     };
 
     const r = await fetch(
@@ -228,6 +239,14 @@ export default function FornecedoresPage() {
               </div>
 
               <div className="mt-3.5 space-y-1.5 text-xs">
+                {/* Como este fornecedor é cobrado vem primeiro: é o que decide
+                    se o robô age sozinho ou se a cobrança depende de alguém. */}
+                {f.canal_cobranca === "whatsapp" && (
+                  <div className="flex items-center gap-2 font-semibold text-emerald-300/85">
+                    <MessageCircle size={12.5} className="shrink-0" />
+                    <span>Cobrança por WhatsApp{f.whatsapp ? ` · ${telFmt(f.whatsapp)}` : ""}</span>
+                  </div>
+                )}
                 {f.email_cobranca && (
                   <div className="flex items-center gap-2 text-lube-200/70">
                     <Mail size={12.5} className="shrink-0 text-lube-300/70" />
@@ -313,17 +332,78 @@ export default function FornecedoresPage() {
           </div>
 
           <div>
-            <label className="label">E-mail de cobrança *</label>
+            <label className="label">Como cobrar a nota deste fornecedor</label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  { v: "email", rot: "Por e-mail", sub: "O robô cobra sozinho", Icone: Mail },
+                  { v: "whatsapp", rot: "Por WhatsApp", sub: "Você cobra à mão, pelo painel", Icone: MessageCircle },
+                ] as const
+              ).map(({ v, rot, sub, Icone }) => {
+                const ativo = form.canal_cobranca === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setForm({ ...form, canal_cobranca: v })}
+                    className="flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition"
+                    style={
+                      ativo
+                        ? { borderColor: "rgba(70,89,224,.75)", background: "rgba(70,89,224,.16)" }
+                        : { borderColor: "var(--color-border-soft)", background: "transparent" }
+                    }
+                  >
+                    <Icone
+                      size={15}
+                      className={`mt-0.5 shrink-0 ${ativo ? "text-lube-100" : "text-lube-300/60"}`}
+                    />
+                    <span className="min-w-0">
+                      <span
+                        className={`block text-sm font-bold ${ativo ? "text-white" : "text-lube-200/80"}`}
+                      >
+                        {rot}
+                      </span>
+                      <span className="block text-[11px] text-lube-200/45">{sub}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {form.canal_cobranca === "whatsapp" ? (
+            <div>
+              <label className="label">WhatsApp do fornecedor *</label>
+              <input
+                className="input"
+                required
+                placeholder="(27) 99999-9999"
+                value={form.whatsapp}
+                onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              />
+              <p className="mt-1 text-[11px] text-lube-200/45">
+                É deste número que sai o botão na tela de faturas. Com DDD; se for de fora do
+                Brasil, comece com o código do país.
+              </p>
+            </div>
+          ) : null}
+
+          <div>
+            <label className="label">
+              E-mail de cobrança {form.canal_cobranca === "email" ? "*" : ""}
+            </label>
             <input
               type="email"
               className="input"
-              required
+              required={form.canal_cobranca === "email"}
               placeholder="financeiro@fornecedor.com.br"
               value={form.email_cobranca}
               onChange={(e) => setForm({ ...form, email_cobranca: e.target.value })}
             />
             <p className="mt-1 text-[11px] text-lube-200/45">
-              Para onde o sistema envia a cobrança da nota fiscal.
+              {form.canal_cobranca === "email"
+                ? "Para onde o sistema envia a cobrança da nota fiscal."
+                : "Opcional neste caso — a cobrança sai pelo WhatsApp. Guardar o endereço ainda ajuda o robô a reconhecer os documentos quando eles chegarem."}
             </p>
           </div>
 

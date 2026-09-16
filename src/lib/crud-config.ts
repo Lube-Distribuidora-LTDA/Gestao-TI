@@ -18,6 +18,7 @@ export const TABELAS: Record<string, ConfigTabela> = {
     colunas: [
       "nome", "razao_social", "cnpj", "email_cobranca", "emails_remetentes",
       "telefone", "contato_nome", "site", "observacoes", "ativo",
+      "canal_cobranca", "whatsapp",
     ],
     ordem: { coluna: "nome", asc: true },
     busca: ["nome", "razao_social", "cnpj", "email_cobranca"],

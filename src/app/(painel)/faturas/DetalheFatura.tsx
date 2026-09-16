@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   FileText, Upload, Send, CheckCircle2, ExternalLink, Trash2, Loader2,
-  AlertTriangle, Mail, Printer, Bot, User,
+  AlertTriangle, Mail, Printer, Bot, User, MessageCircle,
 } from "lucide-react";
-import { moeda, data, dataHora, competenciaExtenso, tamanhoArquivo, hojeISO } from "@/lib/format";
+import {
+  moeda, data, dataHora, competenciaExtenso, tamanhoArquivo, hojeISO, linkWhatsApp,
+} from "@/lib/format";
 import { STATUS_FATURA, TIPO_DOCUMENTO, type StatusFatura, type TipoDocumento } from "@/lib/tipos";
 import { Badge, BotaoAcao } from "@/components/UI";
 import type { TipoAviso } from "@/components/UI";
@@ -200,6 +202,22 @@ export function DetalheFatura({
   const faltaNF = fatura.exige_nota_fiscal && !fatura.nota_fiscal_recebida_em;
   const faltaFat = fatura.exige_fatura && !fatura.fatura_recebida_em;
 
+  /* O pedido já sai escrito com contrato, competência e vencimento: no
+     WhatsApp, quem recebe precisa saber de qual conta se trata sem ter que
+     perguntar de volta. */
+  const oQueFalta =
+    [faltaNF ? "a nota fiscal" : null, faltaFat ? "o boleto" : null].filter(Boolean).join(" e ") ||
+    "a nota fiscal e o boleto";
+
+  const mensagemWhatsApp = [
+    "Olá! Aqui é do setor de TI da Lube Distribuidora.",
+    "",
+    `Poderia nos enviar ${oQueFalta} referente a ${fatura.conta_descricao} — ` +
+      `${competenciaExtenso(fatura.competencia)}, com vencimento em ${data(fatura.vencimento)}?`,
+    "",
+    "Obrigado!",
+  ].join("\n");
+
   return (
     <div className="space-y-5">
       {/* ---------- cabeçalho ---------- */}
@@ -250,16 +268,40 @@ export function DetalheFatura({
 
       {/* ---------- ações rápidas ---------- */}
       <div className="flex flex-wrap gap-2">
-        <BotaoAcao
-          onClick={cobrar}
-          carregando={cobrando}
-          className="btn-danger"
-          disabled={!faltaNF && !faltaFat}
-          title={!faltaNF && !faltaFat ? "Documentos já recebidos" : "Enviar cobrança agora"}
-        >
-          <Send size={15} />
-          Cobrar fornecedor
-        </BotaoAcao>
+        {/*
+          Fornecedor de canal WhatsApp não recebe cobrança por e-mail: mandar
+          mesmo assim seria disparar para um endereço que ninguém lê e registrar
+          no painel uma cobrança que na prática não aconteceu. No lugar do botão
+          entra o atalho para a conversa, com a mensagem pronta.
+        */}
+        {fatura.canal_cobranca === "whatsapp" ? (
+          <a
+            href={linkWhatsApp(fatura.fornecedor_whatsapp, mensagemWhatsApp) ?? undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`btn-primary ${!fatura.fornecedor_whatsapp ? "pointer-events-none opacity-50" : ""}`}
+            style={{ background: "#1f9d55", borderColor: "rgba(37,211,102,.6)" }}
+            title={
+              fatura.fornecedor_whatsapp
+                ? `Abrir a conversa com ${fatura.fornecedor_nome}`
+                : "Cadastre o WhatsApp deste fornecedor na aba Fornecedores"
+            }
+          >
+            <MessageCircle size={15} />
+            {faltaNF || faltaFat ? "Pedir no WhatsApp" : "Abrir conversa"}
+          </a>
+        ) : (
+          <BotaoAcao
+            onClick={cobrar}
+            carregando={cobrando}
+            className="btn-danger"
+            disabled={!faltaNF && !faltaFat}
+            title={!faltaNF && !faltaFat ? "Documentos já recebidos" : "Enviar cobrança agora"}
+          >
+            <Send size={15} />
+            Cobrar fornecedor
+          </BotaoAcao>
+        )}
 
         {fatura.status !== "entregue_contabilidade" && fatura.status !== "paga" && (
           <BotaoAcao

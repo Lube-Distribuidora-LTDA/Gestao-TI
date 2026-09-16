@@ -104,3 +104,33 @@ export function iniciais(nome: string): string {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+/**
+ * Número de WhatsApp em formato legível: (27) 99999-9999.
+ *
+ * Guardamos só dígitos; a máscara é aplicada na hora de mostrar.
+ */
+export function telFmt(v: string | null | undefined): string {
+  const d = (v ?? "").replace(/\D/g, "");
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 13) return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
+  return v ?? "";
+}
+
+/**
+ * Monta o link do WhatsApp com a mensagem de cobrança já escrita.
+ *
+ * O wa.me exige o número com código do país. Quem digita no painel escreve o
+ * número como fala — "(27) 99999-9999" — então o 55 é acrescentado quando o
+ * número tem cara de brasileiro (10 ou 11 dígitos). Número maior já veio com
+ * código de país e é respeitado como está.
+ */
+export function linkWhatsApp(numero: string | null | undefined, mensagem?: string): string | null {
+  const d = (numero ?? "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+
+  const completo = d.length <= 11 ? `55${d}` : d;
+  const texto = mensagem ? `?text=${encodeURIComponent(mensagem)}` : "";
+  return `https://wa.me/${completo}${texto}`;
+}
