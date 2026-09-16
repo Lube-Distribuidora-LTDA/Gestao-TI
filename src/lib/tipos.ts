@@ -4,6 +4,9 @@ export type StatusFatura =
   | "aguardando_documentos"
   | "documentos_recebidos"
   | "em_aprovacao"
+  /** Conferida, assinada e entregue à contabilidade — o fim do fluxo da TI. */
+  | "entregue_contabilidade"
+  /** Legado: virou "entregue_contabilidade". A TI não paga, ela entrega. */
   | "paga"
   | "cancelada";
 
@@ -38,8 +41,13 @@ export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
     classe: "border-violet-400/35 bg-violet-400/12 text-violet-200",
     ponto: "bg-violet-400",
   },
+  entregue_contabilidade: {
+    label: "Assinado e entregue",
+    classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
+    ponto: "bg-emerald-400",
+  },
   paga: {
-    label: "Paga",
+    label: "Assinado e entregue",
     classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
     ponto: "bg-emerald-400",
   },
@@ -269,7 +277,7 @@ export function alertaVencimento(
   vencimento: string,
   status?: StatusFatura | string
 ): EstiloAlerta {
-  if (status === "paga" || status === "cancelada") {
+  if (status === "paga" || status === "entregue_contabilidade" || status === "cancelada") {
     return {
       nivel: "quitada", rotulo: "", descricao: "Sem pendência de pagamento.",
       classe: "", cor: "#64748b", peso: 0, pulsar: false,

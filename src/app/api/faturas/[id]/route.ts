@@ -23,8 +23,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 }
 
 const CAMPOS_EDITAVEIS = [
-  "valor_real", "status", "pago_em", "numero_nota", "numero_documento",
-  "observacoes", "vencimento", "precisa_revisao",
+  "valor_real", "valor_bruto", "status", "pago_em", "entregue_em", "entregue_por",
+  "numero_nota", "numero_documento", "observacoes", "vencimento", "precisa_revisao",
   "nota_fiscal_recebida_em", "fatura_recebida_em",
 ];
 
@@ -43,9 +43,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     return NextResponse.json({ erro: "Nenhum campo válido enviado." }, { status: 400 });
   }
 
-  // marcar como paga sem data informada: assume hoje
-  if (patch.status === "paga" && !patch.pago_em) {
-    patch.pago_em = new Date().toISOString().slice(0, 10);
+  // entregue sem data informada: assume hoje
+  if (patch.status === "entregue_contabilidade" && !patch.entregue_em) {
+    patch.entregue_em = new Date().toISOString().slice(0, 10);
   }
 
   const { data, error } = await supabaseAdmin()

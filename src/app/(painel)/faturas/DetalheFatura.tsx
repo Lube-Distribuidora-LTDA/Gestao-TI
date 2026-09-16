@@ -261,14 +261,19 @@ export function DetalheFatura({
           Cobrar fornecedor
         </BotaoAcao>
 
-        {fatura.status !== "paga" && (
+        {fatura.status !== "entregue_contabilidade" && fatura.status !== "paga" && (
           <BotaoAcao
-            onClick={() => salvar({ status: "paga", pago_em: hojeISO() }, "Fatura baixada como paga.")}
+            onClick={() =>
+              salvar(
+                { status: "entregue_contabilidade", entregue_em: hojeISO() },
+                "Marcada como assinada e entregue à contabilidade."
+              )
+            }
             carregando={salvando}
             className="btn-primary"
           >
             <CheckCircle2 size={15} />
-            Marcar como paga
+            Assinado e entregue
           </BotaoAcao>
         )}
 

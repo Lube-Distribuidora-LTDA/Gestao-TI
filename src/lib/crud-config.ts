@@ -40,6 +40,17 @@ export const TABELAS: Record<string, ConfigTabela> = {
     busca: ["nome"],
   },
 
+  notas_avulsas: {
+    colunas: [
+      "empresa", "cnpj", "servico", "descricao", "numero_nota", "valor",
+      "valor_bruto", "data_servico", "data_nota", "vencimento", "categoria_id",
+      "fornecedor_id", "centro_custo", "status", "entregue_em", "entregue_por",
+      "observacoes",
+    ],
+    ordem: { coluna: "data_nota", asc: false },
+    busca: ["empresa", "servico", "numero_nota", "descricao"],
+  },
+
   ativos: {
     colunas: [
       "patrimonio", "tipo", "marca", "modelo", "numero_serie", "usuario_atual",

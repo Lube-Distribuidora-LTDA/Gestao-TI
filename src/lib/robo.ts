@@ -8,6 +8,7 @@ import {
   imapConfigurado,
   type EmailLido,
 } from "./imap";
+import { extrairDados, consolidar, type DadosDocumento } from "./extrair-documento";
 import { enviarEmail } from "./mailer";
 import { emailCobranca } from "./templates";
 import { hojeISO } from "./format";
@@ -315,8 +316,21 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
        * notas de julho e agosto foram parar todas em setembro, com vencimento
        * errado, e uma conta venceu sem ninguém ver.
        */
+      /*
+       * Os anexos são lidos antes de qualquer decisão. O que está escrito no
+       * documento — número da nota, valor, vencimento, competência — vale mais
+       * que qualquer pista do assunto ou do nome do arquivo, que foi o que
+       * levou notas para o mês errado e mostrou vencimento trocado no painel.
+       */
+      const lidos: Array<{ tipo: string; dados: DadosDocumento }> = [];
+      for (const anexo of email.anexos) {
+        const cls = classificarAnexo(anexo.nome, email.assunto);
+        lidos.push({ tipo: cls.tipo, dados: await extrairDados(anexo.nome, anexo.conteudo) });
+      }
+      const doc = consolidar(lidos);
+
       const contexto = `${email.assunto} ${email.textoCorpo.slice(0, 800)}`;
-      const vencCitado = extrairVencimento(contexto, email.data);
+      const vencCitado = doc.vencimento ?? extrairVencimento(contexto, email.data);
 
       /*
        * A competência sai da melhor pista disponível, nesta ordem:
@@ -329,6 +343,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
        * banco, o documento ficava sem lugar e a nota sumia do painel.
        */
       const compCitada =
+        doc.competencia ??
         extrairCompetencia(contexto, email.data) ??
         (vencCitado ? `${vencCitado.slice(0, 7)}-01` : null) ??
         `${email.data.getFullYear()}-${String(email.data.getMonth() + 1).padStart(2, "0")}-01`;
@@ -431,7 +446,8 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
         if (cls.tipo === "nota_fiscal") {
           temNota = true;
-          numeroNota ??= extrairNumeroNota(`${anexo.nome} ${email.assunto}`);
+          // o número lido dentro da nota vence o que o nome do arquivo sugere
+          numeroNota ??= doc.numeroNota ?? extrairNumeroNota(`${anexo.nome} ${email.assunto}`);
         } else if (cls.tipo === "fatura" || cls.tipo === "boleto") {
           temFatura = true;
         } else if (cls.confianca === "baixa") {
@@ -451,6 +467,19 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         patch.nota_fiscal_recebida_em = agora;
         if (numeroNota) patch.numero_nota = numeroNota;
       }
+
+      /*
+       * Valor: o líquido é o que sai do caixa, então é ele que fica no campo
+       * principal. Quando a nota tem retenção, o bruto é registrado ao lado
+       * para a conferência bater com o papel.
+       */
+      const valorDoDocumento = doc.valorLiquido ?? doc.valorTotal;
+      if (valorDoDocumento) {
+        patch.valor_real = valorDoDocumento;
+        if (doc.valorTotal && doc.valorLiquido && doc.valorTotal !== doc.valorLiquido) {
+          patch.valor_bruto = doc.valorTotal;
+        }
+      }
       if (temFatura) patch.fatura_recebida_em = agora;
 
       // Documento chegou mas não deu para classificar: para de cobrar e pede conferência.
@@ -469,7 +498,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         // qualquer documento válido já tira a competência da fila de cobrança
         patch.status = "documentos_recebidos";
       }
-      if (nfOk && fatOk && atual?.status !== "paga") {
+      if (nfOk && fatOk && atual?.status !== "paga" && atual?.status !== "entregue_contabilidade") {
         patch.status = "documentos_recebidos";
       }
 

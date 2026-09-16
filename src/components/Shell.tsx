@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutDashboard, ReceiptText, Wallet, Building2, LifeBuoy, HardDrive,
-  Bot, Settings, LogOut, Menu, X, ChevronRight, ExternalLink,
+  Bot, Settings, LogOut, Menu, X, ChevronRight, ExternalLink, FilePlus2,
 } from "lucide-react";
 import { MarcaLube } from "./LogoLube";
 import { iniciais } from "@/lib/format";
@@ -56,6 +56,7 @@ export function Shell({
       titulo: "Financeiro",
       itens: [
         { href: "/faturas", rotulo: "Faturas e notas", Icone: ReceiptText, badge: pendencias.faturas },
+        { href: "/notas-avulsas", rotulo: "Notas avulsas", Icone: FilePlus2 },
         { href: "/contas", rotulo: "Contas e contratos", Icone: Wallet },
         { href: "/fornecedores", rotulo: "Fornecedores", Icone: Building2 },
       ],
