@@ -20,6 +20,7 @@ import { hojeISO } from "./format";
 type Fornecedor = {
   id: string;
   nome: string;
+  razao_social: string | null;
   emails_remetentes: string[];
   email_cobranca: string | null;
 };
@@ -50,26 +51,66 @@ export type ResultadoLeitura = {
   erro?: string;
 };
 
-/** Casa o remetente do e-mail com um fornecedor cadastrado. */
-function acharFornecedor(remetente: string, fornecedores: Fornecedor[]): Fornecedor | null {
+/**
+ * Casa o remetente do e-mail com um fornecedor cadastrado.
+ *
+ * O `nomeExibido` é o que vem antes do endereço no cabeçalho `From` — em
+ * `"SAAM Auditoria" <noreply@omie.com.br>`, é "SAAM Auditoria". Ele decide
+ * quando o endereço sozinho é ambíguo, e isso acontece sempre que o
+ * fornecedor emite por uma plataforma: Omie e ContaAzul disparam de um único
+ * endereço em nome de clientes diferentes, e a Kaizen e o SAAM chegam os dois
+ * por `noreply@omie.com.br`. Pelo endereço, as notas de um cairiam na conta
+ * do outro.
+ */
+function acharFornecedor(
+  remetente: string,
+  fornecedores: Fornecedor[],
+  nomeExibido?: string
+): Fornecedor | null {
   if (!remetente) return null;
   const email = remetente.toLowerCase().trim();
   const dominio = email.split("@")[1] ?? "";
 
+  /** Compara o nome de exibição com o nome/razão social do fornecedor. */
+  const casaPeloNome = (lista: Fornecedor[]): Fornecedor | null => {
+    const exibido = (nomeExibido ?? "").toLowerCase().trim();
+    if (!exibido || lista.length === 0) return null;
+
+    // vence o nome mais longo encontrado: é o mais específico
+    let melhor: Fornecedor | null = null;
+    let tamanho = 0;
+
+    for (const f of lista) {
+      for (const candidato of [f.nome, f.razao_social ?? ""]) {
+        // "Mais Dados / INTELI+" é comparado por cada parte
+        for (const parte of candidato.split("/")) {
+          const t = parte.toLowerCase().replace(/\s+/g, " ").trim();
+          if (t.length >= 4 && exibido.includes(t) && t.length > tamanho) {
+            melhor = f;
+            tamanho = t.length;
+          }
+        }
+      }
+    }
+    return melhor;
+  };
+
   // 1) endereço exato cadastrado em emails_remetentes
-  const exato = fornecedores.find((f) =>
+  const exatos = fornecedores.filter((f) =>
     (f.emails_remetentes ?? []).some((e) => e.toLowerCase().trim() === email)
   );
-  if (exato) return exato;
+  if (exatos.length === 1) return exatos[0];
+  if (exatos.length > 1) return casaPeloNome(exatos) ?? exatos[0];
 
   // 2) domínio cadastrado como "@dominio.com.br" em emails_remetentes
-  const porDominioCadastrado = fornecedores.find((f) =>
+  const porDominio = fornecedores.filter((f) =>
     (f.emails_remetentes ?? []).some((e) => {
       const t = e.toLowerCase().trim();
       return t.startsWith("@") && dominio === t.slice(1);
     })
   );
-  if (porDominioCadastrado) return porDominioCadastrado;
+  if (porDominio.length === 1) return porDominio[0];
+  if (porDominio.length > 1) return casaPeloNome(porDominio) ?? porDominio[0];
 
   // 3) mesmo domínio do e-mail de cobrança do fornecedor
   if (dominio) {
@@ -195,7 +236,10 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
   try {
     const [{ data: cfgRows }, { data: fornecedoresData }, { data: contasData }] = await Promise.all([
       db.from("configuracoes").select("chave, valor"),
-      db.from("fornecedores").select("id, nome, emails_remetentes, email_cobranca").eq("ativo", true),
+      db
+        .from("fornecedores")
+        .select("id, nome, razao_social, emails_remetentes, email_cobranca")
+        .eq("ativo", true),
       db
         .from("contas")
         .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, dia_vencimento, valor_previsto")
@@ -278,7 +322,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         resultado: "sem_correspondencia",
       };
 
-      const fornecedor = acharFornecedor(email.remetente, fornecedores);
+      const fornecedor = acharFornecedor(email.remetente, fornecedores, email.remetenteNome);
 
       if (!fornecedor) {
         base.semCorrespondencia++;
@@ -359,10 +403,16 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
       /*
        * A competência sai da melhor pista disponível, nesta ordem:
-       *   1. o mês escrito no e-mail ("| JULHO |", "Competência 08/2026");
-       *   2. o mês do vencimento anunciado — é o mês em que a conta pesa no
-       *      caixa, que é o que o financeiro acompanha;
-       *   3. o mês em que a mensagem chegou.
+       *   1. o mês declarado no documento (`dCompet` da NFS-e);
+       *   2. o mês escrito no e-mail ("| JULHO |", "Competência 08/2026");
+       *   3. o mês em que o documento chegou.
+       *
+       * O mês do vencimento **não** entra nessa conta. O fornecedor manda a
+       * nota num mês para receber no seguinte, e datar o documento pelo
+       * vencimento jogava a cobrança um mês à frente: o boleto da INTELI+
+       * emitido em 17/08, a vencer 01/09, abriu uma competência de setembro
+       * ao lado da de agosto que já era dele — duas linhas para a mesma
+       * conta. Vale o mês em que o documento foi enviado.
        *
        * Sempre há uma resposta: antes, quando nenhuma competência existia no
        * banco, o documento ficava sem lugar e a nota sumia do painel.
@@ -370,7 +420,6 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       const compCitada =
         doc.competencia ??
         extrairCompetencia(contexto, email.data) ??
-        (vencCitado ? `${vencCitado.slice(0, 7)}-01` : null) ??
         `${email.data.getFullYear()}-${String(email.data.getMonth() + 1).padStart(2, "0")}-01`;
 
       let fatura: { id: string; competencia: string; numero_nota: string | null } | null = null;
@@ -693,7 +742,14 @@ export async function executarCobrancas(opts?: {
       .from("vw_faturas_detalhe")
       .select("*")
       // nunca cobrar o que já foi assinado e entregue — nem pelo botão manual
-      .not("status", "in", "(paga,entregue_contabilidade,cancelada)");
+      .not("status", "in", "(paga,entregue_contabilidade,cancelada)")
+      /*
+       * Fornecedor de canal WhatsApp fica de fora, sempre. Mandar e-mail para
+       * quem só responde no WhatsApp gera o pior resultado possível: a
+       * mensagem sai, o contador de cobranças sobe, o painel dá a conta por
+       * cobrada — e ninguém do outro lado leu nada.
+       */
+      .eq("canal_cobranca", "email");
 
     if (opts?.forcarFaturaId) {
       query = query.eq("id", opts.forcarFaturaId);
