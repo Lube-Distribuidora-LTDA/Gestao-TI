@@ -80,6 +80,11 @@ export default function RoboPage() {
               `${d.emailsLidos} e-mail(s) na janela · ${d.candidatos ?? 0} de fornecedor com anexo · ` +
               `${d.baixados ?? 0} baixado(s)\n` +
               `${d.documentosVinculados} documento(s) vinculado(s) · ${d.faturasAtualizadas} fatura(s) atualizada(s).` +
+              /* documento que ficou sem ler é informação de risco: some uma nota
+                 do painel sem ninguém perceber até o boleto vencer */
+              (d.cortados
+                ? `\n⚠ ${d.cortados} e-mail(s) com anexo não couberam nesta rodada. Rode a leitura de novo.`
+                : "") +
               (d.erro ? `\n${d.erro}` : "")
           );
         } else {
@@ -215,6 +220,11 @@ export default function RoboPage() {
                           <span>
                             {e.emails_lidos} e-mail(s) na janela
                             {e.detalhes?.baixados != null && ` · ${e.detalhes.baixados} baixado(s)`}
+                          </span>
+                        )}
+                        {(e.detalhes?.cortados ?? 0) > 0 && (
+                          <span className="text-amber-300/90">
+                            {e.detalhes?.cortados} sem ler
                           </span>
                         )}
                         {e.documentos_vinculados > 0 && (

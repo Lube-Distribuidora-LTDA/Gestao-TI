@@ -41,6 +41,7 @@ export type ResultadoLeitura = {
   emailsLidos: number;      // total de e-mails na janela varrida
   candidatos: number;       // passaram no filtro de remetente + anexo
   baixados: number;         // tiveram o corpo baixado
+  cortados: number;         // candidatos que o limite deixou para a próxima rodada
   documentosVinculados: number;
   faturasAtualizadas: number;
   semCorrespondencia: number;
@@ -172,6 +173,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
     emailsLidos: 0,
     candidatos: 0,
     baixados: 0,
+    cortados: 0,
     documentosVinculados: 0,
     faturasAtualizadas: 0,
     semCorrespondencia: 0,
@@ -217,16 +219,39 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       ...(f.email_cobranca ? ["@" + (f.email_cobranca.split("@")[1] ?? "")] : []),
     ]);
 
+    /*
+     * Os message-ids já processados vão junto para a triagem. Antes a conferência
+     * só acontecia depois do download, então a cota de mensagens era gasta relendo
+     * documentos antigos e as notas ainda desconhecidas ficavam de fora do corte.
+     */
+    const { data: processados } = await db
+      .from("emails_processados")
+      .select("message_id")
+      .gte("recebido_em", new Date(Date.now() - dias * 86_400_000).toISOString());
+
     const varredura = await lerEmailsRecentes({
       dias,
       pasta: cfg.get("imap_pasta") || "INBOX",
       remetentesConhecidos,
+      jaProcessados: new Set((processados ?? []).map((p) => p.message_id as string)),
     });
 
     const emails = varredura.emails;
     base.emailsLidos = varredura.totalNoPeriodo;
     base.candidatos = varredura.candidatos;
     base.baixados = varredura.baixados;
+    base.cortados = varredura.cortados;
+
+    /* Nenhum documento pode sumir em silêncio: se o limite cortou alguém, isso
+       vira uma linha no relatório da execução, visível na tela do robô. */
+    if (varredura.cortados > 0) {
+      detalhes.push({
+        assunto: `${varredura.cortados} e-mail(s) com anexo ficaram sem ler`,
+        remetente: "(limite da varredura)",
+        resultado:
+          "O limite por execução foi atingido. Rode a leitura de novo para alcançar os mais antigos.",
+      });
+    }
 
     for (const email of emails) {
       // --- idempotência: nunca processa o mesmo e-mail duas vezes ---
@@ -534,6 +559,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
           detalhes: {
             candidatos: base.candidatos,
             baixados: base.baixados,
+            cortados: base.cortados,
             faturasAtualizadas: base.faturasAtualizadas,
             semCorrespondencia: base.semCorrespondencia,
             jaProcessados: base.jaProcessados,

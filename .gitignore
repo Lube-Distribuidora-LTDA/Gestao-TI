@@ -19,3 +19,6 @@ next-env.d.ts
 
 # vínculo local com a Vercel
 .vercel
+
+# correções pontuais de dados, rodadas à mão e não versionadas
+_correcao/

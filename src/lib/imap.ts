@@ -98,6 +98,12 @@ export type ResultadoVarredura = {
   totalNoPeriodo: number;   // quantos e-mails existiam na janela
   candidatos: number;       // quantos passaram no filtro de remetente + anexo
   baixados: number;         // de quantos o corpo foi realmente baixado
+  /*
+   * Quantos candidatos novos o limite deixou de fora. Precisa aparecer no
+   * painel: até set/2026 o corte era silencioso, e a nota de agosto da Mais
+   * Dados ficou dois meses fora do sistema sem que nada indicasse a falta.
+   */
+  cortados: number;
 };
 
 /** Diz se o bodyStructure indica algum anexo que valha a pena baixar. */
@@ -146,10 +152,18 @@ export async function lerEmailsRecentes(opts: {
   limite?: number;
   /** Endereços e domínios (`@dominio.com.br`) dos fornecedores cadastrados. */
   remetentesConhecidos?: string[];
+  /*
+   * Message-IDs que o robô já processou em execuções anteriores. Descartar
+   * esses antes da fase cara é o que faz o limite render: antes, baixar de
+   * novo os mesmos e-mails consumia a cota e empurrava os documentos novos
+   * para fora do corte.
+   */
+  jaProcessados?: Set<string>;
 }): Promise<ResultadoVarredura> {
   const client = criarCliente();
   const emails: EmailLido[] = [];
   const limite = opts.limite ?? 60;
+  const vistos = opts.jaProcessados ?? new Set<string>();
 
   const conhecidos = (opts.remetentesConhecidos ?? []).map((e) => e.toLowerCase().trim());
   const enderecos = new Set(conhecidos.filter((e) => !e.startsWith("@")));
@@ -164,7 +178,7 @@ export async function lerEmailsRecentes(opts: {
   // Sem fornecedores cadastrados não há a que vincular documento algum —
   // baixar centenas de e-mails aqui seria trabalho jogado fora.
   if (enderecos.size === 0 && dominios.size === 0) {
-    return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0 };
+    return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0, cortados: 0 };
   }
 
   await client.connect();
@@ -173,6 +187,7 @@ export async function lerEmailsRecentes(opts: {
   const lock = await client.getMailboxLock(pasta);
 
   let totalNoPeriodo = 0;
+  let cortados = 0;
   const candidatos: Array<{ uid: number; remetente: string }> = [];
 
   try {
@@ -196,7 +211,7 @@ export async function lerEmailsRecentes(opts: {
       : 0;
 
     if (total === 0) {
-      return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0 };
+      return { emails: [], totalNoPeriodo: 0, candidatos: 0, baixados: 0, cortados: 0 };
     }
 
     const janela = Math.min(Math.max(opts.dias * 120, 300), 2000);
@@ -219,11 +234,20 @@ export async function lerEmailsRecentes(opts: {
       if (!interessa(remetente)) continue;
       if (!temAnexoRelevante(msg.bodyStructure)) continue;
 
+      /*
+       * E-mail já processado antes não precisa ser baixado de novo. Isso era
+       * checado só depois do download, então cada varredura gastava o limite
+       * relendo os mesmos documentos do mês passado — e o que sobrava não
+       * alcançava as notas mais antigas da janela.
+       */
+      const messageId = (msg.envelope?.messageId ?? "").trim();
+      if (messageId && vistos.has(messageId)) continue;
+
       candidatos.push({ uid: msg.uid, remetente });
     }
 
     if (candidatos.length === 0) {
-      return { emails: [], totalNoPeriodo, candidatos: 0, baixados: 0 };
+      return { emails: [], totalNoPeriodo, candidatos: 0, baixados: 0, cortados: 0 };
     }
 
     /*
@@ -237,7 +261,8 @@ export async function lerEmailsRecentes(opts: {
      * que é baixar o corpo de cada mensagem.
      */
     candidatos.sort((a, b) => b.uid - a.uid);
-    if (candidatos.length > limite) candidatos.length = limite;
+    cortados = Math.max(0, candidatos.length - limite);
+    if (cortados > 0) candidatos.length = limite;
 
     // ---------- fase 3: baixar o corpo apenas dos escolhidos ----------
     if (candidatos.length > 0) {
@@ -295,6 +320,7 @@ export async function lerEmailsRecentes(opts: {
     totalNoPeriodo,
     candidatos: candidatos.length,
     baixados: emails.length,
+    cortados,
   };
 }
 
