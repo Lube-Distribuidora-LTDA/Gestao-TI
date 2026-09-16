@@ -12,10 +12,18 @@ export default async function FaturasPage() {
   const [{ data: fornecedores }, { data: categorias }, { data: competencias }] = await Promise.all([
     db.from("fornecedores").select("id, nome").eq("ativo", true).order("nome"),
     db.from("categorias_custo").select("id, nome, cor").eq("ativo", true).order("ordem"),
-    db.from("faturas").select("competencia").order("competencia", { ascending: false }),
+    db.from("faturas").select("competencia, vencimento").order("competencia", { ascending: false }),
   ]);
 
   const listaCompetencias = [...new Set((competencias ?? []).map((c) => c.competencia as string))];
+
+  // meses que efetivamente têm fatura vencendo — é por vencimento que se cobra
+  const mesesVencimento = [
+    ...new Set((competencias ?? []).map((c) => String(c.vencimento).slice(0, 7))),
+  ]
+    .filter(Boolean)
+    .sort()
+    .reverse();
 
   return (
     <>
@@ -29,6 +37,7 @@ export default async function FaturasPage() {
           fornecedores={fornecedores ?? []}
           categorias={categorias ?? []}
           competencias={listaCompetencias}
+          mesesVencimento={mesesVencimento}
         />
       </Suspense>
     </>

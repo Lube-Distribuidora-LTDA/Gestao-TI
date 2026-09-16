@@ -26,6 +26,42 @@ export async function GET(req: Request) {
   if (filtro === "vencidas") q = q.eq("vencida", true);
   if (filtro === "revisao") q = q.eq("precisa_revisao", true);
 
+  /*
+   * Visão padrão: o que vence neste mês, mais tudo que ficou para trás e
+   * ainda não foi entregue. Sem isso a tela virava um arquivo histórico e o
+   * mês corrente se perdia no meio.
+   *
+   * `competencia` ou `mesVencimento` explícitos desligam o padrão: aí a
+   * pessoa está procurando um período específico e deve ver exatamente ele.
+   */
+  const mesVenc = url.searchParams.get("mesVencimento");
+  const semRecorte = competencia || mesVenc || filtro === "vencidas" || url.searchParams.get("tudo") === "1";
+
+  if (mesVenc) {
+    // "2026-09" -> todo o mês
+    const [ano, mes] = mesVenc.split("-").map(Number);
+    if (ano && mes) {
+      const primeiro = `${ano}-${String(mes).padStart(2, "0")}-01`;
+      const ultimo = new Date(ano, mes, 0).toISOString().slice(0, 10);
+      q = q.gte("vencimento", primeiro).lte("vencimento", ultimo);
+    }
+  } else if (!semRecorte) {
+    const hoje = new Date();
+    const primeiroDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+      .toISOString()
+      .slice(0, 10);
+
+    /*
+     * Do primeiro dia do mês em diante, OU vencida e ainda em aberto. O
+     * "ou" precisa ser uma condição só, senão o filtro de mês esconderia
+     * justamente as contas atrasadas que exigem ação.
+     */
+    q = q.or(
+      `vencimento.gte.${primeiroDoMes},` +
+        `and(vencimento.lt.${primeiroDoMes},status.in.(aguardando_documentos,documentos_recebidos,em_aprovacao))`
+    );
+  }
+
   /* Degraus de alerta por proximidade do vencimento. Contas já pagas ou
      canceladas ficam de fora: não há o que acompanhar nelas. */
   if (filtro === "hoje" || filtro === "urgente" || filtro === "mes") {

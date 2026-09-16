@@ -47,10 +47,13 @@ export function TelaFaturas({
   fornecedores,
   categorias,
   competencias,
+  mesesVencimento,
 }: {
   fornecedores: Opcao[];
   categorias: Opcao[];
   competencias: string[];
+  /** "2026-09", "2026-10"... meses que têm alguma fatura vencendo. */
+  mesesVencimento: string[];
 }) {
   const params = useSearchParams();
   const { aviso, mostrar, limpar } = useAviso();
@@ -67,6 +70,7 @@ export function TelaFaturas({
     categoria: "",
     filtro: params.get("filtro") ?? "",
     busca: params.get("busca") ?? "",
+    mesVencimento: "",
   });
 
   const carregar = useCallback(async () => {
@@ -155,6 +159,20 @@ export function TelaFaturas({
                 onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
               />
             </div>
+          </div>
+
+          <div className="w-[168px]">
+            <label className="label">Mês de vencimento</label>
+            <select
+              className="input"
+              value={filtros.mesVencimento}
+              onChange={(e) => setFiltros({ ...filtros, mesVencimento: e.target.value, filtro: "" })}
+            >
+              <option value="">Mês atual + atrasadas</option>
+              {mesesVencimento.map((m) => (
+                <option key={m} value={m}>{competenciaLabel(m + "-01")}</option>
+              ))}
+            </select>
           </div>
 
           <div className="w-[150px]">
@@ -277,9 +295,20 @@ export function TelaFaturas({
             A conferir ({revisao.length})
           </Atalho>
 
-          <div className="ml-auto text-sm">
-            <span className="text-lube-200/55">Total listado: </span>
-            <span className="font-extrabold text-white">{moeda(total)}</span>
+          <div className="ml-auto flex items-center gap-3 text-sm">
+            {!filtros.mesVencimento && !filtros.competencia && (
+              <span
+                className="rounded-lg border px-2 py-1 text-[11px] font-semibold text-lube-200/70"
+                style={{ borderColor: "var(--color-border-soft)" }}
+                title="A lista mostra o mês corrente e tudo que ficou atrasado. Use o seletor de mês para ver outro período."
+              >
+                mês atual + atrasadas
+              </span>
+            )}
+            <span>
+              <span className="text-lube-200/55">Total listado: </span>
+              <span className="font-extrabold text-white">{moeda(total)}</span>
+            </span>
           </div>
         </div>
       </div>
