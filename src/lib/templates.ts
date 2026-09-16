@@ -1,6 +1,55 @@
 import { esc } from "./mailer";
 import { moeda, data, competenciaExtenso } from "./format";
 
+/**
+ * Faixa de identificação do assistente virtual da TI.
+ *
+ * Desenhada em HTML, não como imagem: cliente de e-mail bloqueia imagem
+ * externa por padrão, e a assinatura sumiria justamente para quem abre a
+ * mensagem pela primeira vez — que é quando ela mais importa.
+ */
+function faixaAssistente(): string {
+  return `
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="background:#ffffff;border-collapse:collapse;">
+    <tr>
+      <!-- bloco azul com o nome do assistente -->
+      <td style="background:#1e2f8f;padding:18px 26px;border-radius:0 0 38px 0;white-space:nowrap;">
+        <span style="color:#ffffff;font-size:17px;font-weight:800;letter-spacing:.6px;
+                     font-family:'Segoe UI',Arial,sans-serif;">
+          ASSISTENTE VIRTUAL TI
+        </span>
+      </td>
+
+      <!-- contato -->
+      <td style="padding:18px 20px;white-space:nowrap;">
+        <span style="display:inline-block;background:#e30613;color:#ffffff;font-size:11px;
+                     padding:3px 7px;border-radius:3px;vertical-align:middle;">&#9993;</span>
+        <span style="color:#1c2439;font-size:15px;vertical-align:middle;padding-left:7px;
+                     font-family:'Segoe UI',Arial,sans-serif;">cpd@lube.com.br</span>
+      </td>
+
+      <!-- marca -->
+      <td align="right" style="padding:14px 26px;white-space:nowrap;">
+        <span style="color:#1e2f8f;font-size:21px;font-weight:800;letter-spacing:-.3px;
+                     font-family:'Segoe UI',Arial,sans-serif;">Lube</span>
+        <span style="display:inline-block;background:#e30613;color:#ffffff;font-size:9px;
+                     font-weight:800;letter-spacing:1.4px;padding:2px 6px;margin-left:5px;
+                     vertical-align:middle;font-family:'Segoe UI',Arial,sans-serif;">DISTRIBUIDORA</span>
+        <div style="color:#1e2f8f;font-size:9px;font-weight:700;letter-spacing:1.6px;
+                    margin-top:3px;font-family:'Segoe UI',Arial,sans-serif;">DESDE 1959</div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3" style="padding:0 26px 14px;">
+        <span style="color:#1e2f8f;font-size:15px;font-family:'Segoe UI',Arial,sans-serif;">
+          www.lube.com.br
+        </span>
+      </td>
+    </tr>
+  </table>`;
+}
+
 /** Layout base dos e-mails, com a identidade da Lube. */
 function layout(conteudo: string, rodapeExtra?: string): string {
   return `<!doctype html>
@@ -13,19 +62,9 @@ function layout(conteudo: string, rodapeExtra?: string): string {
              style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;
                     box-shadow:0 6px 28px rgba(14,23,66,.16);">
 
-        <!-- cabeçalho -->
-        <tr><td style="background:linear-gradient(135deg,#1e2f8f 0%,#0e1742 100%);padding:26px 32px;">
-          <table role="presentation" width="100%"><tr>
-            <td style="color:#fff;font-size:23px;font-weight:800;letter-spacing:.4px;">
-              LUBE <span style="color:#ff6b70;font-weight:800;">DISTRIBUIDORA</span>
-            </td>
-            <td align="right" style="color:#a9b8ff;font-size:11px;font-weight:700;
-                                     text-transform:uppercase;letter-spacing:1.4px;">
-              Departamento de TI
-            </td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="height:4px;background:linear-gradient(90deg,#1e2f8f,#ee1c25);"></td></tr>
+        <!-- faixa do assistente virtual -->
+        <tr><td style="padding:0;">${faixaAssistente()}</td></tr>
+        <tr><td style="height:4px;background:linear-gradient(90deg,#1e2f8f,#e30613);"></td></tr>
 
         <!-- corpo -->
         <tr><td style="padding:32px;color:#1c2439;font-size:15px;line-height:1.65;">
