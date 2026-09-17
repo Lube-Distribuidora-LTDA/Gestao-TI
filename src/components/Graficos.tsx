@@ -177,7 +177,11 @@ export function GraficoCategorias({
             position="right"
             offset={10}
             formatter={(v: number) => moedaCurta(v)}
-            style={{ fill: "#c9d4ff", fontSize: 11, fontWeight: 700 }}
+            /* o contorno vem herdado da barra e engoliria o texto */
+            stroke="none"
+            fill="#c9d4ff"
+            fontSize={11}
+            fontWeight={700}
           />
         </Bar>
       </BarChart>
@@ -234,7 +238,11 @@ export function GraficoFornecedores({
             position="right"
             offset={10}
             formatter={(v: number) => moedaCurta(v)}
-            style={{ fill: "#c9d4ff", fontSize: 11, fontWeight: 700 }}
+            /* o contorno vem herdado da barra e engoliria o texto */
+            stroke="none"
+            fill="#c9d4ff"
+            fontSize={11}
+            fontWeight={700}
           />
         </Bar>
       </BarChart>
@@ -283,7 +291,10 @@ export function GraficoChamados({
             dataKey="qtd"
             position="top"
             offset={8}
-            style={{ fill: "#c9d4ff", fontSize: 12, fontWeight: 800 }}
+            stroke="none"
+            fill="#c9d4ff"
+            fontSize={12}
+            fontWeight={800}
           />
         </Bar>
       </BarChart>
