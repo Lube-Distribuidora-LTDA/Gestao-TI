@@ -447,10 +447,68 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
        * Sempre há uma resposta: antes, quando nenhuma competência existia no
        * banco, o documento ficava sem lugar e a nota sumia do painel.
        */
-      const compCitada =
+      let compCitada =
         doc.competencia ??
         extrairCompetencia(contexto, email.data) ??
         `${email.data.getFullYear()}-${String(email.data.getMonth() + 1).padStart(2, "0")}-01`;
+
+      /*
+       * Conta de débito automático só recolhe o comprovante do débito corrente.
+       *
+       * Assinatura de software não tem histórico a recuperar: o que importa é o
+       * recibo do pagamento que acabou de acontecer. O fornecedor manda muita
+       * coisa pelo mesmo endereço — recibos de compras avulsas, de meses
+       * anteriores, cobranças de crédito de API — e sem recorte o painel vira
+       * um arquivo: um recibo de crédito de R$ 128,13 chegou a ocupar a linha
+       * da assinatura de R$ 826,00.
+       *
+       * A regra tem duas partes, e as duas precisam valer:
+       *   1. estamos na janela do débito (o dia 24 e a semana seguinte);
+       *   2. o documento chegou dentro dessa mesma janela.
+       *
+       * Fora da janela o robô nem olha para trás. A semana de folga cobre o
+       * recibo que sai de madrugada ou no primeiro dia útil, e as falhas de uma
+       * ou outra execução do cron — sem chegar perto do débito do mês anterior.
+       */
+      if (conta.pagamento_automatico) {
+        const dia = conta.dia_vencimento ?? 1;
+        const hoje = new Date();
+        const noMes = (d: Date) =>
+          Math.min(dia, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate());
+
+        const debito = new Date(hoje.getFullYear(), hoje.getMonth(), noMes(hoje));
+        // o dia ainda não chegou neste mês: o último débito foi no mês passado
+        if (debito > hoje) debito.setMonth(debito.getMonth() - 1);
+
+        // o sétimo dia conta inteiro: sem isto a folga terminava à meia-noite
+        const fimDaJanela = new Date(debito);
+        fimDaJanela.setDate(fimDaJanela.getDate() + 7);
+        fimDaJanela.setHours(23, 59, 59, 999);
+
+        const chegada = email.data;
+        const foraDaEpoca = hoje > fimDaJanela;
+        const documentoForaDaJanela = chegada < debito || chegada > fimDaJanela;
+
+        if (foraDaEpoca || documentoForaDaJanela) {
+          registro.resultado = "fora_da_data_de_debito";
+          await db.from("emails_processados").insert(registro);
+          detalhes.push({
+            assunto: email.assunto,
+            remetente: email.remetente,
+            resultado:
+              `${fornecedor.nome} / ${conta.descricao}: só recolhe o recibo do débito do dia ${dia} ` +
+              `(este chegou em ${chegada.toLocaleDateString("pt-BR")})`,
+          });
+          continue;
+        }
+
+        /*
+         * A competência é o mês do débito, e não o que o documento diz. O
+         * recibo descreve o ciclo do serviço — "Team plan, Aug 24–Sep 24" — e
+         * ler agosto ali jogaria o pagamento de setembro para o mês anterior.
+         */
+        compCitada = `${debito.getFullYear()}-${String(debito.getMonth() + 1).padStart(2, "0")}-01`;
+      }
 
       let fatura: { id: string; competencia: string; numero_nota: string | null } | null = null;
 
