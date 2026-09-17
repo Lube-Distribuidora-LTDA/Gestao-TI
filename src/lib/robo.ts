@@ -33,6 +33,8 @@ type ContaLite = {
   palavras_chave: string[];
   exige_nota_fiscal: boolean;
   exige_fatura: boolean;
+  exige_recibo: boolean;
+  pagamento_automatico: boolean;
   dia_vencimento: number | null;
   valor_previsto: number | null;
 };
@@ -197,12 +199,40 @@ function acharConta(email: EmailLido, contas: ContaLite[]): ContaLite | null {
 function pareceDocumentoFiscal(assunto: string, nomesAnexos: string[]): boolean {
   const ctx = `${assunto} ${nomesAnexos.join(" ")}`.toLowerCase();
 
-  // assunto de atendimento ou material comercial: não é cobrança
-  if (/(chamado|ticket|#\d{4,}|relat[óo]rio|proposta|or[çc]amento|reuni[ãa]o|ata de|aditivo|contrato de presta)/i.test(ctx)) {
+  // conversa de atendimento ou material comercial: nunca é cobrança
+  if (
+    /(chamado|ticket|relat[óo]rio|proposta|or[çc]amento|reuni[ãa]o|ata de|aditivo|contrato de presta)/i.test(
+      ctx
+    )
+  ) {
     return false;
   }
 
-  return /(nfse|nfs-e|nf-e|nfe|nota[\s_-]?fiscal|danfe|boleto|fatura|invoice|cobran[çc]a|t[íi]tulo|nf|vencim)/i.test(ctx);
+  /*
+   * O documento anunciado no próprio assunto tem a palavra final.
+   *
+   * Um "#0000" costuma ser número de chamado, mas é também como a Anthropic
+   * identifica o recibo: "Your receipt from Anthropic, PBC #2260-7279-4892".
+   * Descartar por causa do número jogava fora justamente o comprovante — e em
+   * silêncio, porque o e-mail nem chegava a ser classificado.
+   */
+  const anunciaDocumento =
+    /(nfse|nfs-e|nota[\s_-]?fiscal|danfe|boleto|recibo|receipt|comprovante)/i.test(ctx);
+
+  if (/#\d{4,}/.test(ctx) && !anunciaDocumento) return false;
+
+  /*
+   * `recibo|receipt|comprovante` entram por direito próprio: as assinaturas de
+   * software no exterior só emitem isso, e sem o termo o e-mail da Anthropic
+   * passava apenas por acaso, porque o outro anexo se chama "Invoice".
+   *
+   * E "nf" precisa das bordas de palavra. Elas tinham sido gravadas como
+   * caractere de controle numa edição anterior, o que matava a alternativa em
+   * silêncio: "Envio de NF 934" só era aceito porque o assunto dizia "Boleto".
+   */
+  return /(nfse|nfs-e|nf-e|nfe|nota[\s_-]?fiscal|danfe|boleto|fatura|invoice|recibo|receipt|comprovante|cobran[çc]a|t[íi]tulo|\bnf\b|vencim)/i.test(
+    ctx
+  );
 }
 
 export async function processarEmails(opts?: { dias?: number }): Promise<ResultadoLeitura> {
@@ -242,7 +272,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         .eq("ativo", true),
       db
         .from("contas")
-        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, dia_vencimento, valor_previsto")
+        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, exige_recibo, pagamento_automatico, dia_vencimento, valor_previsto")
         .eq("ativo", true),
     ]);
 
@@ -516,6 +546,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       // --- salva os anexos e classifica ---
       let temNota = false;
       let temFatura = false;
+      let temRecibo = false;
       let temDuvida = false;
       let numeroNota: string | null = null;
       let salvos = 0;
@@ -565,6 +596,8 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
           numeroNota ??= doc.numeroNota ?? extrairNumeroNota(`${anexo.nome} ${email.assunto}`);
         } else if (cls.tipo === "fatura" || cls.tipo === "boleto") {
           temFatura = true;
+        } else if (cls.tipo === "recibo") {
+          temRecibo = true;
         } else if (cls.confianca === "baixa") {
           temDuvida = true;
         }
@@ -593,9 +626,16 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       const agora = new Date().toISOString();
       const patch: Record<string, unknown> = {};
 
-      // o fornecedor anunciou a data de pagamento: ela vale mais que o dia
-      // fixo do contrato, desde que a competência ainda não esteja quitada
-      if (vencCitado) patch.vencimento = vencCitado;
+      /*
+       * O fornecedor anunciou a data de pagamento: ela vale mais que o dia
+       * fixo do contrato, desde que a competência ainda não esteja quitada.
+       *
+       * Conta de débito automático é exceção. A data dela é o dia fixo em que o
+       * cartão é cobrado, e o recibo costuma citar o fim do ciclo ("Aug 24 –
+       * Sep 24"). Deixar o documento remarcar essa data empurraria a conta para
+       * o mês seguinte a cada recibo recebido.
+       */
+      if (vencCitado && !conta.pagamento_automatico) patch.vencimento = vencCitado;
 
       if (temNota) {
         patch.nota_fiscal_recebida_em = agora;
@@ -614,7 +654,8 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
           patch.valor_bruto = doc.valorTotal;
         }
       }
-      if (temFatura) patch.fatura_recebida_em = agora;
+      // o recibo é o comprovante do pagamento: encerra o lado financeiro igual
+      if (temFatura || temRecibo) patch.fatura_recebida_em = agora;
 
       // Documento chegou mas não deu para classificar: para de cobrar e pede conferência.
       if (!temNota && !temFatura && temDuvida) patch.precisa_revisao = true;
@@ -627,12 +668,15 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
       const nfOk = !conta.exige_nota_fiscal || temNota || !!atual?.nota_fiscal_recebida_em;
       const fatOk = !conta.exige_fatura || temFatura || !!atual?.fatura_recebida_em;
+      /* Assinatura de software no exterior não emite nota nem boleto: o que
+         encerra a competência é o recibo do pagamento já feito. */
+      const recOk = !conta.exige_recibo || temRecibo || !!atual?.fatura_recebida_em;
 
       if (atual?.status === "aguardando_documentos") {
         // qualquer documento válido já tira a competência da fila de cobrança
         patch.status = "documentos_recebidos";
       }
-      if (nfOk && fatOk && atual?.status !== "paga" && atual?.status !== "entregue_contabilidade") {
+      if (nfOk && fatOk && recOk && atual?.status !== "paga" && atual?.status !== "entregue_contabilidade") {
         patch.status = "documentos_recebidos";
       }
 
