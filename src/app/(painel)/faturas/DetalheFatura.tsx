@@ -551,6 +551,8 @@ function corDoTipo(tipo: TipoDocumento): React.CSSProperties {
     nota_fiscal: ["25,158,112", "#7fe3bd"],   // verde
     fatura:      ["57,135,229", "#9ec5f4"],   // azul
     boleto:      ["57,135,229", "#9ec5f4"],   // azul — também é pagamento
+    // âmbar: o recibo é o único que comprova pagamento já feito, não a fazer
+    recibo:      ["217,142,38", "#f0c674"],
     contrato:    ["144,133,233", "#c9c2f5"],  // violeta
     outro:       ["126,148,255", "#c9d4ff"],  // neutro
   };

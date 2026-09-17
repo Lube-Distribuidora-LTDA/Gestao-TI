@@ -19,7 +19,8 @@ export type StatusChamado =
   | "cancelado";
 
 export type PrioridadeChamado = "baixa" | "media" | "alta" | "critica";
-export type TipoDocumento = "nota_fiscal" | "fatura" | "boleto" | "contrato" | "outro";
+export type TipoDocumento =
+  | "nota_fiscal" | "fatura" | "boleto" | "recibo" | "contrato" | "outro";
 export type Periodicidade = "mensal" | "bimestral" | "trimestral" | "semestral" | "anual" | "avulso";
 export type StatusAtivo = "em_uso" | "estoque" | "manutencao" | "descartado";
 
@@ -122,6 +123,7 @@ export const TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
   nota_fiscal: "Nota fiscal",
   fatura: "Fatura",
   boleto: "Boleto",
+  recibo: "Recibo",
   contrato: "Contrato",
   outro: "Outro",
 };
@@ -238,7 +240,10 @@ export function documentosFaltantes(f: {
    ALERTA DE VENCIMENTO
    ============================================================ */
 
-export type NivelAlerta = "vencida" | "hoje" | "urgente" | "atencao" | "tranquilo" | "quitada";
+export type NivelAlerta =
+  | "vencida" | "hoje" | "urgente" | "atencao" | "tranquilo" | "quitada"
+  /* débito automático: a data é o dia em que o dinheiro sai, não um prazo */
+  | "automatico";
 
 export type EstiloAlerta = {
   nivel: NivelAlerta;
@@ -272,11 +277,34 @@ export function diasAteVencer(vencimento: string): number {
  *   - **hoje / vencida**: o prazo chegou ou passou.
  *
  * Fatura paga ou cancelada não alerta nada, por mais atrasada que esteja.
+ *
+ * `pagamentoAutomatico` tira a conta do regime de prazo por completo. As
+ * assinaturas de IA são debitadas no cartão em data fixa: aquela data é o dia
+ * em que o dinheiro sai, não um compromisso a cumprir. Tratá-la como
+ * vencimento faria a conta ficar vermelha no dia seguinte ao pagamento, todo
+ * mês, para sempre — e alarme que sempre toca ninguém mais escuta.
  */
 export function alertaVencimento(
   vencimento: string,
-  status?: StatusFatura | string
+  status?: StatusFatura | string,
+  pagamentoAutomatico?: boolean
 ): EstiloAlerta {
+  if (pagamentoAutomatico) {
+    const dias = diasAteVencer(vencimento);
+    const debitado = dias <= 0;
+    return {
+      nivel: "automatico",
+      rotulo: debitado ? "debitado" : `débito em ${dias}d`,
+      descricao: debitado
+        ? "Débito automático já efetuado nesta data."
+        : `Débito automático programado para daqui a ${dias} dia${dias === 1 ? "" : "s"}.`,
+      classe: "border-sky-400/40 bg-sky-400/10 text-sky-200",
+      cor: "#3987e5",
+      peso: 0,
+      pulsar: false,
+    };
+  }
+
   if (status === "paga" || status === "entregue_contabilidade" || status === "cancelada") {
     return {
       nivel: "quitada", rotulo: "", descricao: "Sem pendência de pagamento.",

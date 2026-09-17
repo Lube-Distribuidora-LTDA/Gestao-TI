@@ -42,6 +42,8 @@ export type FaturaLinha = {
   categoria_cor: string | null;
   qtd_documentos: number;
   numero_nota: string | null;
+  exige_recibo: boolean;
+  pagamento_automatico: boolean;
   pago_em: string | null;
 };
 
@@ -137,12 +139,16 @@ export function TelaFaturas({
   /* ---------- totais do que está na tela ---------- */
   const total = linhas.reduce((s, f) => s + Number(f.valor_efetivo ?? 0), 0);
   const pendentes = linhas.filter((f) => f.status === "aguardando_documentos");
-  const vencidas = linhas.filter((f) => alertaVencimento(f.vencimento, f.status).nivel === "vencida");
+  const vencidas = linhas.filter(
+    (f) => alertaVencimento(f.vencimento, f.status, f.pagamento_automatico).nivel === "vencida"
+  );
   const revisao = linhas.filter((f) => f.precisa_revisao);
 
   // degraus de alerta, para os atalhos e o resumo do topo
   const porNivel = (n: string) =>
-    linhas.filter((f) => alertaVencimento(f.vencimento, f.status).nivel === n);
+    linhas.filter(
+      (f) => alertaVencimento(f.vencimento, f.status, f.pagamento_automatico).nivel === n
+    );
   const venceHoje = porNivel("hoje");
   const urgentes = porNivel("urgente");
   const atencao = porNivel("atencao");
@@ -374,10 +380,19 @@ export function TelaFaturas({
 
                     <td className="whitespace-nowrap">
                       {(() => {
-                        const al = alertaVencimento(f.vencimento, f.status);
+                        const al = alertaVencimento(f.vencimento, f.status, f.pagamento_automatico);
                         const avisa = al.nivel !== "tranquilo" && al.nivel !== "quitada";
                         return (
                           <>
+                            {/* Conta de débito automático não vence: a data é o
+                                dia em que o valor sai do cartão, e dizer
+                                "vencimento" ali seria cobrar um prazo de quem
+                                já pagou. */}
+                            {f.pagamento_automatico && (
+                              <div className="text-[10px] font-bold uppercase tracking-wide text-sky-300/70">
+                                débito automático
+                              </div>
+                            )}
                             <div
                               className="font-semibold"
                               style={{ color: avisa ? al.cor : undefined }}

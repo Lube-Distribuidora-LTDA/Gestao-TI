@@ -97,7 +97,7 @@ export default async function Dashboard() {
    */
   const comAlerta = (pendentes ?? []).map((f) => ({
     f,
-    a: alertaVencimento(f.vencimento, f.status),
+    a: alertaVencimento(f.vencimento, f.status, f.pagamento_automatico),
   }));
 
   const degrau = (nivel: string) =>

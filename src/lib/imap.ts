@@ -329,7 +329,7 @@ export async function lerEmailsRecentes(opts: {
    ============================================================ */
 
 export type ClassificacaoAnexo = {
-  tipo: "nota_fiscal" | "fatura" | "boleto" | "contrato" | "outro";
+  tipo: "nota_fiscal" | "fatura" | "boleto" | "recibo" | "contrato" | "outro";
   confianca: "alta" | "media" | "baixa";
 };
 
@@ -337,6 +337,14 @@ const PISTA_NOTA   = /(nfse|nfs-e|nf-e|nf_e|nfe|nota[\s_-]?fiscal|danfe|\bnf\b)/
 const PISTA_BOLETO = /(boleto|\bbol\b|cobran[çc]a|t[íi]tulo)/i;
 const PISTA_FATURA = /(fatura|invoice|demonstrativo|conta[\s_-]?de)/i;
 const PISTA_CONTRATO = /(contrato|aditivo|proposta|relat[óo]rio|ata[\s_-]|termo)/i;
+/*
+ * Recibo é o comprovante de um pagamento que já aconteceu — o oposto de um
+ * boleto. As assinaturas de software no exterior só emitem isto: a Anthropic
+ * manda "Receipt-2260-7279-4892.pdf" junto com o "Invoice", e sem esta pista
+ * o recibo caía em "outro" e a conta ficava aguardando um documento que já
+ * estava lá.
+ */
+const PISTA_RECIBO = /(recibo|receipt|comprovante[\s_-]?de[\s_-]?pagamento)/i;
 
 /**
  * Descobre se o anexo é nota fiscal, fatura ou boleto.
@@ -364,6 +372,7 @@ export function classificarAnexo(nomeArquivo: string, assunto: string): Classifi
   // porque é o documento que o arquivo representa
   if (notaNoNome)   return { tipo: "nota_fiscal", confianca: "alta" };
   if (boletoNoNome) return { tipo: "boleto", confianca: "alta" };
+  if (PISTA_RECIBO.test(nome))   return { tipo: "recibo", confianca: "alta" };
   if (PISTA_FATURA.test(nome))   return { tipo: "fatura", confianca: "alta" };
   if (PISTA_CONTRATO.test(nome)) return { tipo: "contrato", confianca: "media" };
 
@@ -374,6 +383,7 @@ export function classificarAnexo(nomeArquivo: string, assunto: string): Classifi
   // boleto, e a nota vem citada só como referência
   if (PISTA_BOLETO.test(a)) return { tipo: "boleto", confianca: "media" };
   if (PISTA_NOTA.test(a))   return { tipo: "nota_fiscal", confianca: "media" };
+  if (PISTA_RECIBO.test(a)) return { tipo: "recibo", confianca: "media" };
   if (PISTA_FATURA.test(a)) return { tipo: "fatura", confianca: "media" };
   if (PISTA_CONTRATO.test(a)) return { tipo: "contrato", confianca: "baixa" };
 
