@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, Plus, Search, Pencil, Trash2, Loader2, Bot, BellOff } from "lucide-react";
+import {
+  Wallet, Plus, Search, Pencil, Trash2, Loader2, Bot, BellOff, FileSpreadsheet,
+} from "lucide-react";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge } from "@/components/UI";
 import { moeda } from "@/lib/format";
 import { PERIODICIDADE, type Periodicidade } from "@/lib/tipos";
@@ -44,6 +46,10 @@ export default function ContasPage() {
   const [categorias, setCategorias] = useState<Opcao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
+  const [fCategoria, setFCategoria] = useState("");
+  const [fFornecedor, setFFornecedor] = useState("");
+  const [fSituacao, setFSituacao] = useState("ativas");
+  const [exportando, setExportando] = useState(false);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -143,9 +149,66 @@ export default function ContasPage() {
 
   const nomeFornecedor = (id: string) => fornecedores.find((f) => f.id === id)?.nome ?? "—";
   const categoria = (id: string | null) => categorias.find((c) => c.id === id);
-  const totalMensal = lista
+
+  /*
+   * Os filtros são aplicados aqui, e não no servidor: a lista de contratos é
+   * curta e cabe inteira na tela, então filtrar em memória responde na hora.
+   * A busca continua no servidor porque ela também olha campos que a tela não
+   * mostra.
+   */
+  const contas = lista.filter((c) => {
+    if (fCategoria === "sem" ? c.categoria_id !== null : fCategoria && c.categoria_id !== fCategoria)
+      return false;
+    if (fFornecedor && c.fornecedor_id !== fFornecedor) return false;
+    if (fSituacao === "ativas" && !c.ativo) return false;
+    if (fSituacao === "inativas" && c.ativo) return false;
+    return true;
+  });
+
+  const totalMensal = contas
     .filter((c) => c.ativo && c.periodicidade === "mensal")
     .reduce((s, c) => s + Number(c.valor_previsto ?? 0), 0);
+
+  const filtrando = !!(busca || fCategoria || fFornecedor || fSituacao !== "ativas");
+
+  /*
+   * A planilha sai do servidor já montada, com os mesmos filtros da tela: sem
+   * isso, exportar daria um arquivo diferente do que está sendo olhado.
+   */
+  async function exportar() {
+    setExportando(true);
+    try {
+      const qs = new URLSearchParams();
+      if (busca) qs.set("busca", busca);
+      if (fCategoria) qs.set("categoria", fCategoria);
+      if (fFornecedor) qs.set("fornecedor", fFornecedor);
+      qs.set("situacao", fSituacao);
+
+      const r = await fetch(`/api/contas/exportar?${qs}`);
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        mostrar("erro", d.erro ?? "Não foi possível gerar a planilha.");
+        return;
+      }
+
+      const blob = await r.blob();
+      const nome =
+        r.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ??
+        "contas-e-contratos.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nome;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      mostrar("sucesso", `Planilha gerada com ${contas.length} contrato(s).`);
+    } catch {
+      mostrar("erro", "Falha ao gerar a planilha.");
+    }
+    setExportando(false);
+  }
 
   return (
     <>
@@ -161,21 +224,87 @@ export default function ContasPage() {
         }
       />
 
-      <div className="card mb-5 animate-fade-up">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="relative max-w-md flex-1">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-            <input
-              className="input pl-9"
-              placeholder="Buscar conta ou contrato..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
+      <div className="card mb-5 animate-fade-up no-print">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="min-w-[210px] flex-1">
+            <label className="label">Buscar</label>
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
+              <input
+                className="input pl-9"
+                placeholder="Conta, contrato ou centro de custo..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="text-sm">
+
+          <div className="w-[190px]">
+            <label className="label">Categoria</label>
+            <select
+              className="input"
+              value={fCategoria}
+              onChange={(e) => setFCategoria(e.target.value)}
+            >
+              <option value="">Todas</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+              <option value="sem">Sem categoria</option>
+            </select>
+          </div>
+
+          <div className="w-[180px]">
+            <label className="label">Fornecedor</label>
+            <select
+              className="input"
+              value={fFornecedor}
+              onChange={(e) => setFFornecedor(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {fornecedores.map((f) => (
+                <option key={f.id} value={f.id}>{f.nome}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="w-[135px]">
+            <label className="label">Situação</label>
+            <select className="input" value={fSituacao} onChange={(e) => setFSituacao(e.target.value)}>
+              <option value="ativas">Ativas</option>
+              <option value="inativas">Inativas</option>
+              <option value="todas">Todas</option>
+            </select>
+          </div>
+
+          <BotaoAcao
+            onClick={exportar}
+            carregando={exportando}
+            className="btn-ghost"
+            disabled={contas.length === 0}
+            title={
+              contas.length === 0
+                ? "Nada para exportar com estes filtros"
+                : "Baixar em Excel o que está na tela"
+            }
+          >
+            <FileSpreadsheet size={15} />
+            Exportar
+          </BotaoAcao>
+        </div>
+
+        <div
+          className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm"
+          style={{ borderColor: "var(--color-border-soft)" }}
+        >
+          <span className="text-lube-200/55">
+            {contas.length} de {lista.length} contrato(s)
+            {filtrando && <span className="text-lube-300/70"> · filtro aplicado</span>}
+          </span>
+          <span>
             <span className="text-lube-200/55">Custo fixo mensal previsto: </span>
             <span className="font-extrabold text-white">{moeda(totalMensal)}</span>
-          </div>
+          </span>
         </div>
       </div>
 
@@ -195,7 +324,7 @@ export default function ContasPage() {
         <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
           <Loader2 size={18} className="animate-spin" /> Carregando...
         </div>
-      ) : lista.length === 0 ? (
+      ) : contas.length === 0 ? (
         <div className="card">
           <Vazio
             titulo="Nenhuma conta cadastrada"
@@ -219,7 +348,7 @@ export default function ContasPage() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((c) => {
+              {contas.map((c) => {
                 const cat = categoria(c.categoria_id);
                 return (
                   <tr key={c.id} className={c.ativo ? "" : "opacity-50"}>

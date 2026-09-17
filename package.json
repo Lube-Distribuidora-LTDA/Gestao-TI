@@ -12,6 +12,7 @@
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "date-fns": "^4.1.0",
+    "exceljs": "^4.4.0",
     "imapflow": "^1.0.191",
     "lucide-react": "^0.544.0",
     "mailparser": "^3.7.2",
