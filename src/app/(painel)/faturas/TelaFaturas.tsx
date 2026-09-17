@@ -446,7 +446,12 @@ export function TelaFaturas({
                             <span className="text-xs text-lube-200/30">—</span>
                           )}
                         {f.nota_fiscal_recebida_em && <Selo tipo="nota" />}
-                        {f.fatura_recebida_em && <Selo tipo="fatura" />}
+                        {/* Conta que se encerra com recibo não recebe fatura
+                            nem boleto: chamar o documento de "Fatura" ali diria
+                            que há algo a pagar, quando o pagamento já saiu. */}
+                        {f.fatura_recebida_em && (
+                          <Selo tipo={f.exige_recibo ? "recibo" : "fatura"} />
+                        )}
                         {f.precisa_revisao && (
                           <span title="Documento recebido aguardando conferência">
                             <AlertTriangle size={14} className="text-violet-300" />
@@ -524,6 +529,7 @@ function BotaoWhatsApp({ fatura }: { fatura: FaturaLinha }) {
   const falta = [
     fatura.exige_nota_fiscal && !fatura.nota_fiscal_recebida_em ? "a nota fiscal" : null,
     fatura.exige_fatura && !fatura.fatura_recebida_em ? "o boleto" : null,
+    fatura.exige_recibo && !fatura.fatura_recebida_em ? "o recibo do pagamento" : null,
   ].filter(Boolean);
 
   const mensagem = [
@@ -577,20 +583,41 @@ function BotaoWhatsApp({ fatura }: { fatura: FaturaLinha }) {
  * azul para a fatura/boleto (documento de pagamento), ambos da mesma paleta
  * dos gráficos, testada para o fundo escuro.
  */
-function Selo({ tipo }: { tipo: "nota" | "fatura" }) {
-  const nota = tipo === "nota";
+const SELOS = {
+  nota: {
+    rotulo: "NF",
+    titulo: "Nota fiscal recebida",
+    // verde: documento fiscal
+    estilo: { borderColor: "rgba(25,158,112,.45)", background: "rgba(25,158,112,.14)", color: "#7fe3bd" },
+  },
+  fatura: {
+    rotulo: "Fatura",
+    titulo: "Fatura/boleto recebido",
+    // azul: documento de pagamento a fazer
+    estilo: { borderColor: "rgba(57,135,229,.45)", background: "rgba(57,135,229,.14)", color: "#9ec5f4" },
+  },
+  recibo: {
+    rotulo: "Recibo",
+    titulo: "Recibo do pagamento recebido",
+    /*
+     * Âmbar, e não o azul dos outros: o recibo é o único que comprova
+     * pagamento já feito, e não algo a pagar. A cor destaca sozinha no meio
+     * das linhas de nota e boleto, que são a maioria.
+     */
+    estilo: { borderColor: "rgba(217,142,38,.55)", background: "rgba(217,142,38,.16)", color: "#f0c674" },
+  },
+} as const;
+
+function Selo({ tipo }: { tipo: keyof typeof SELOS }) {
+  const { rotulo, titulo, estilo } = SELOS[tipo];
   return (
     <span
-      title={nota ? "Nota fiscal recebida" : "Fatura/boleto recebido"}
+      title={titulo}
       className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold"
-      style={
-        nota
-          ? { borderColor: "rgba(25,158,112,.45)", background: "rgba(25,158,112,.14)", color: "#7fe3bd" }
-          : { borderColor: "rgba(57,135,229,.45)", background: "rgba(57,135,229,.14)", color: "#9ec5f4" }
-      }
+      style={estilo}
     >
       <FileCheck2 size={11} />
-      {nota ? "NF" : "Fatura"}
+      {rotulo}
     </span>
   );
 }

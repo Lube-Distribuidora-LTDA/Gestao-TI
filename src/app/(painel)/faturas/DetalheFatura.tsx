@@ -201,13 +201,22 @@ export function DetalheFatura({
   const est = STATUS_FATURA[fatura.status as StatusFatura];
   const faltaNF = fatura.exige_nota_fiscal && !fatura.nota_fiscal_recebida_em;
   const faltaFat = fatura.exige_fatura && !fatura.fatura_recebida_em;
+  /* Conta de assinatura não espera boleto: o que falta nela é o recibo do
+     débito, guardado no mesmo campo de recebimento. */
+  const faltaRecibo = fatura.exige_recibo && !fatura.fatura_recebida_em;
+  const faltaAlgo = faltaNF || faltaFat || faltaRecibo;
 
   /* O pedido já sai escrito com contrato, competência e vencimento: no
      WhatsApp, quem recebe precisa saber de qual conta se trata sem ter que
      perguntar de volta. */
   const oQueFalta =
-    [faltaNF ? "a nota fiscal" : null, faltaFat ? "o boleto" : null].filter(Boolean).join(" e ") ||
-    "a nota fiscal e o boleto";
+    [
+      faltaNF ? "a nota fiscal" : null,
+      faltaFat ? "o boleto" : null,
+      faltaRecibo ? "o recibo do pagamento" : null,
+    ]
+      .filter(Boolean)
+      .join(" e ") || "a nota fiscal e o boleto";
 
   const mensagemWhatsApp = [
     "Olá! Aqui é do setor de TI da Lube Distribuidora.",
@@ -245,13 +254,16 @@ export function DetalheFatura({
           </div>
         </div>
 
-        {(faltaNF || faltaFat) && (
+        {faltaAlgo && (
           <div
             className="mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-amber-100"
             style={{ borderColor: "rgba(201,133,0,.4)", background: "rgba(201,133,0,.1)" }}
           >
             <AlertTriangle size={14} />
-            Falta receber: {[faltaNF && "nota fiscal", faltaFat && "fatura/boleto"].filter(Boolean).join(" e ")}
+            Falta receber:{" "}
+            {[faltaNF && "nota fiscal", faltaFat && "fatura/boleto", faltaRecibo && "recibo"]
+              .filter(Boolean)
+              .join(" e ")}
           </div>
         )}
 
@@ -288,15 +300,15 @@ export function DetalheFatura({
             }
           >
             <MessageCircle size={15} />
-            {faltaNF || faltaFat ? "Pedir no WhatsApp" : "Abrir conversa"}
+            {faltaAlgo ? "Pedir no WhatsApp" : "Abrir conversa"}
           </a>
         ) : (
           <BotaoAcao
             onClick={cobrar}
             carregando={cobrando}
             className="btn-danger"
-            disabled={!faltaNF && !faltaFat}
-            title={!faltaNF && !faltaFat ? "Documentos já recebidos" : "Enviar cobrança agora"}
+            disabled={!faltaAlgo}
+            title={!faltaAlgo ? "Documentos já recebidos" : "Enviar cobrança agora"}
           >
             <Send size={15} />
             Cobrar fornecedor
