@@ -22,3 +22,6 @@ next-env.d.ts
 
 # correções pontuais de dados, rodadas à mão e não versionadas
 _correcao/
+
+# documentos baixados pela busca em outra caixa — nunca versionar
+documentos-encontrados/
