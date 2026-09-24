@@ -5,6 +5,7 @@ import {
   extrairCompetencia,
   extrairVencimento,
   extrairNumeroNota,
+  extrairLinkDoPortal,
   imapConfigurado,
   type EmailLido,
 } from "./imap";
@@ -35,6 +36,7 @@ type ContaLite = {
   exige_fatura: boolean;
   exige_recibo: boolean;
   pagamento_automatico: boolean;
+  documento_via_link: boolean;
   dia_vencimento: number | null;
   valor_previsto: number | null;
 };
@@ -53,69 +55,104 @@ export type ResultadoLeitura = {
   erro?: string;
 };
 
+/*
+ * Domínios de plataforma de cobrança — Omie, ContaAzul — que várias empresas
+ * compartilham para faturar, nunca donos de uma única. Um e-mail assim exige
+ * confirmação por nome mesmo quando só existe UM fornecedor nosso registrado
+ * nesse domínio: outra empresa qualquer que também usa a plataforma tem o
+ * mesmo endereço, e sem a confirmação a nota dela cairia na conta errada.
+ *
+ * Foi o que aconteceu ao testar esta função: uma fatura da "ION LABS
+ * INFORMATICA E TECNOLOGIA LTDA", de pagamentos@contaazul.com — o mesmo
+ * endereço que a SAAM usa —, quase entrou como se fosse da SAAM.
+ */
+const DOMINIOS_COMPARTILHADOS = new Set(["omie.com.br", "contaazul.com"]);
+
 /**
  * Casa o remetente do e-mail com um fornecedor cadastrado.
  *
  * O `nomeExibido` é o que vem antes do endereço no cabeçalho `From` — em
- * `"SAAM Auditoria" <noreply@omie.com.br>`, é "SAAM Auditoria". Ele decide
- * quando o endereço sozinho é ambíguo, e isso acontece sempre que o
- * fornecedor emite por uma plataforma: Omie e ContaAzul disparam de um único
- * endereço em nome de clientes diferentes, e a Kaizen e o SAAM chegam os dois
- * por `noreply@omie.com.br`. Pelo endereço, as notas de um cairiam na conta
- * do outro.
+ * `"SISAUDCON" <pagamentos@contaazul.com>`, é "SISAUDCON". O `contexto` é o
+ * assunto e o começo do corpo: alguns avisos da mesma plataforma trazem o
+ * nome do emitente só ali dentro, e não no nome de exibição — foi o caso de
+ * um e-mail da SAAM que chegou como `"NB TECHNOLOGY" <pagamentos@contaazul.com>`,
+ * mas com "Sistema SAAM Auditoria" escrito no assunto.
+ *
+ * Qualquer um dos dois que confirmar já basta; nenhum dos dois confirmando,
+ * em domínio compartilhado, o e-mail fica sem fornecedor — é o que evita que
+ * a nota de uma terceira empresa qualquer caia numa conta que não é dela.
  */
 function acharFornecedor(
   remetente: string,
   fornecedores: Fornecedor[],
-  nomeExibido?: string
+  nomeExibido?: string,
+  contexto?: string
 ): Fornecedor | null {
   if (!remetente) return null;
   const email = remetente.toLowerCase().trim();
   const dominio = email.split("@")[1] ?? "";
 
-  /** Compara o nome de exibição com o nome/razão social do fornecedor. */
-  const casaPeloNome = (lista: Fornecedor[]): Fornecedor | null => {
-    const exibido = (nomeExibido ?? "").toLowerCase().trim();
-    if (!exibido || lista.length === 0) return null;
-
-    // vence o nome mais longo encontrado: é o mais específico
-    let melhor: Fornecedor | null = null;
-    let tamanho = 0;
-
-    for (const f of lista) {
-      for (const candidato of [f.nome, f.razao_social ?? ""]) {
-        // "Mais Dados / INTELI+" é comparado por cada parte
-        for (const parte of candidato.split("/")) {
-          const t = parte.toLowerCase().replace(/\s+/g, " ").trim();
-          if (t.length >= 4 && exibido.includes(t) && t.length > tamanho) {
-            melhor = f;
-            tamanho = t.length;
-          }
-        }
+  /** Quanto do nome/razão social do fornecedor aparece no texto — 0 se nada. */
+  const tamanhoDoMatch = (textoBusca: string, f: Fornecedor): number => {
+    let melhor = 0;
+    for (const candidato of [f.nome, f.razao_social ?? ""]) {
+      // "Mais Dados / INTELI+" é comparado por cada parte
+      for (const parte of candidato.split("/")) {
+        const t = parte.toLowerCase().replace(/\s+/g, " ").trim();
+        if (t.length >= 4 && textoBusca.includes(t) && t.length > melhor) melhor = t.length;
       }
     }
     return melhor;
+  };
+
+  /** Entre os candidatos, o que tem o trecho mais longo (mais específico) casando com o texto. */
+  const casarEm = (lista: Fornecedor[], texto: string | undefined): Fornecedor | null => {
+    const alvo = (texto ?? "").toLowerCase().trim();
+    if (!alvo) return null;
+    let melhorF: Fornecedor | null = null;
+    let melhorTam = 0;
+    for (const f of lista) {
+      const tam = tamanhoDoMatch(alvo, f);
+      if (tam > melhorTam) {
+        melhorF = f;
+        melhorTam = tam;
+      }
+    }
+    return melhorF;
+  };
+
+  const casaPeloNome = (lista: Fornecedor[]) => casarEm(lista, nomeExibido);
+  const casaPeloContexto = (lista: Fornecedor[]) => casarEm(lista, contexto);
+
+  const confirmar = (lista: Fornecedor[]): Fornecedor | null => {
+    if (lista.length === 0) return null;
+    if (DOMINIOS_COMPARTILHADOS.has(dominio)) {
+      return casaPeloNome(lista) ?? casaPeloContexto(lista);
+    }
+    if (lista.length === 1) return lista[0];
+    return casaPeloNome(lista) ?? lista[0];
   };
 
   // 1) endereço exato cadastrado em emails_remetentes
   const exatos = fornecedores.filter((f) =>
     (f.emails_remetentes ?? []).some((e) => e.toLowerCase().trim() === email)
   );
-  if (exatos.length === 1) return exatos[0];
-  if (exatos.length > 1) return casaPeloNome(exatos) ?? exatos[0];
+  const porExato = confirmar(exatos);
+  if (porExato) return porExato;
 
   // 2) domínio cadastrado como "@dominio.com.br" em emails_remetentes
-  const porDominio = fornecedores.filter((f) =>
+  const porDominioLista = fornecedores.filter((f) =>
     (f.emails_remetentes ?? []).some((e) => {
       const t = e.toLowerCase().trim();
       return t.startsWith("@") && dominio === t.slice(1);
     })
   );
-  if (porDominio.length === 1) return porDominio[0];
-  if (porDominio.length > 1) return casaPeloNome(porDominio) ?? porDominio[0];
+  const porDominio = confirmar(porDominioLista);
+  if (porDominio) return porDominio;
 
-  // 3) mesmo domínio do e-mail de cobrança do fornecedor
-  if (dominio) {
+  // 3) mesmo domínio do e-mail de cobrança do fornecedor — domínio próprio
+  // dele, não plataforma compartilhada, então não exige a confirmação acima
+  if (dominio && !DOMINIOS_COMPARTILHADOS.has(dominio)) {
     const porCobranca = fornecedores.find(
       (f) => (f.email_cobranca ?? "").toLowerCase().split("@")[1] === dominio
     );
@@ -272,7 +309,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         .eq("ativo", true),
       db
         .from("contas")
-        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, exige_recibo, pagamento_automatico, dia_vencimento, valor_previsto")
+        .select("id, fornecedor_id, descricao, identificador, palavras_chave, exige_nota_fiscal, exige_fatura, exige_recibo, pagamento_automatico, documento_via_link, dia_vencimento, valor_previsto")
         .eq("ativo", true),
     ]);
 
@@ -294,6 +331,18 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
     ]);
 
     /*
+     * Fornecedor cuja(s) conta(s) chegam por link de portal precisa passar
+     * pela triagem mesmo sem anexo — senão o e-mail nunca vira candidato, e o
+     * robô jamais chega a olhar para o corpo em busca do link.
+     */
+    const fornecedoresComLink = new Set(
+      contas.filter((c) => c.documento_via_link).map((c) => c.fornecedor_id)
+    );
+    const remetentesSemAnexo = fornecedores
+      .filter((f) => fornecedoresComLink.has(f.id))
+      .flatMap((f) => f.emails_remetentes ?? []);
+
+    /*
      * Os message-ids já processados vão junto para a triagem. Antes a conferência
      * só acontecia depois do download, então a cota de mensagens era gasta relendo
      * documentos antigos e as notas ainda desconhecidas ficavam de fora do corte.
@@ -307,6 +356,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       dias,
       pasta: cfg.get("imap_pasta") || "INBOX",
       remetentesConhecidos,
+      remetentesSemAnexo,
       jaProcessados: new Set((processados ?? []).map((p) => p.message_id as string)),
     });
 
@@ -352,7 +402,12 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         resultado: "sem_correspondencia",
       };
 
-      const fornecedor = acharFornecedor(email.remetente, fornecedores, email.remetenteNome);
+      const fornecedor = acharFornecedor(
+        email.remetente,
+        fornecedores,
+        email.remetenteNome,
+        `${email.assunto} ${email.textoCorpo.slice(0, 800)}`
+      );
 
       if (!fornecedor) {
         base.semCorrespondencia++;
@@ -361,7 +416,25 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       }
       registro.fornecedor_id = fornecedor.id;
 
-      if (email.anexos.length === 0) {
+      const contasDoFornecedor = contas.filter((c) => c.fornecedor_id === fornecedor.id);
+      const contasPorLink = contasDoFornecedor.filter((c) => c.documento_via_link);
+
+      /*
+       * Fornecedor que manda nota e boleto como link de portal (a SAAM, desde
+       * que trocou de Omie para ContaAzul) nunca vai ter anexo — o e-mail é só
+       * um aviso com um link. Sem esta exceção, "sem anexo" descartava a
+       * cobrança inteira todo mês, em silêncio.
+       *
+       * O link só conta se pelo menos uma conta deste fornecedor estiver
+       * marcada para isso: sem a marcação, um link qualquer no corpo do
+       * e-mail (rastreio, ajuda, WhatsApp do suporte) não vira documento.
+       */
+      const linkDoPortal =
+        email.anexos.length === 0 && contasPorLink.length > 0
+          ? extrairLinkDoPortal(`${email.assunto}\n${email.textoCorpo}`)
+          : null;
+
+      if (email.anexos.length === 0 && !linkDoPortal) {
         registro.resultado = "ignorado_sem_anexo";
         await db.from("emails_processados").insert(registro);
         detalhes.push({
@@ -372,7 +445,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         continue;
       }
 
-      if (!pareceDocumentoFiscal(email.assunto, email.anexos.map((a) => a.nome))) {
+      if (email.anexos.length > 0 && !pareceDocumentoFiscal(email.assunto, email.anexos.map((a) => a.nome))) {
         registro.resultado = "ignorado_nao_fiscal";
         await db.from("emails_processados").insert(registro);
         detalhes.push({
@@ -384,8 +457,9 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       }
 
       // --- qual conta/contrato? ---
-      const contasDoFornecedor = contas.filter((c) => c.fornecedor_id === fornecedor.id);
-      const conta = acharConta(email, contasDoFornecedor);
+      // achado o link, só as contas que esperam esse canal fazem sentido
+      const candidatas = linkDoPortal ? contasPorLink : contasDoFornecedor;
+      const conta = acharConta(email, candidatas);
 
       if (!conta) {
         registro.resultado =
@@ -609,55 +683,89 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       let numeroNota: string | null = null;
       let salvos = 0;
 
-      for (const anexo of email.anexos) {
-        const cls = classificarAnexo(anexo.nome, email.assunto);
-
-        /* O primeiro envio já trouxe este arquivo: o reencaminhamento não
-           precisa empilhar uma segunda cópia na mesma fatura. */
-        const { data: jaAnexado } = await db
+      if (linkDoPortal) {
+        /*
+         * Um link só, guardado como documento próprio — sem arquivo nosso,
+         * sem passar pelo Storage. A mesma página do fornecedor mostra nota e
+         * boleto juntos, então o link satisfaz os dois de uma vez.
+         */
+        const { data: jaTemEsseLink } = await db
           .from("documentos")
           .select("id")
           .eq("fatura_id", fatura.id)
-          .eq("nome_arquivo", anexo.nome)
+          .eq("url_externa", linkDoPortal)
           .maybeSingle();
 
-        if (jaAnexado) continue;
+        if (!jaTemEsseLink) {
+          await db.from("documentos").insert({
+            fatura_id: fatura.id,
+            fornecedor_id: fornecedor.id,
+            tipo: "link_portal",
+            confianca: "alta",
+            nome_arquivo: "Nota e boleto no portal",
+            url_externa: linkDoPortal,
+            origem: "email",
+            email_message_id: email.messageId,
+            email_assunto: email.assunto.slice(0, 500),
+            email_remetente: email.remetente,
+            recebido_em: email.data.toISOString(),
+          });
 
-        const nomeSeguro = anexo.nome.replace(/[^\w.\-]/g, "_").slice(-120);
-        const path = `${fornecedor.id}/${fatura.id}/${Date.now()}-${nomeSeguro}`;
-
-        const up = await db.storage
-          .from(BUCKET_DOCUMENTOS)
-          .upload(path, anexo.conteudo, { contentType: anexo.mime, upsert: false });
-
-        await db.from("documentos").insert({
-          fatura_id: fatura.id,
-          fornecedor_id: fornecedor.id,
-          tipo: cls.tipo,
-          confianca: cls.confianca,
-          nome_arquivo: anexo.nome,
-          storage_path: up.error ? null : path,
-          tamanho_bytes: anexo.tamanho,
-          mime_type: anexo.mime,
-          origem: "email",
-          email_message_id: email.messageId,
-          email_assunto: email.assunto.slice(0, 500),
-          email_remetente: email.remetente,
-          recebido_em: email.data.toISOString(),
-        });
-
-        salvos++;
-
-        if (cls.tipo === "nota_fiscal") {
+          salvos = 1;
           temNota = true;
-          // o número lido dentro da nota vence o que o nome do arquivo sugere
-          numeroNota ??= doc.numeroNota ?? extrairNumeroNota(`${anexo.nome} ${email.assunto}`);
-        } else if (cls.tipo === "fatura" || cls.tipo === "boleto") {
           temFatura = true;
-        } else if (cls.tipo === "recibo") {
-          temRecibo = true;
-        } else if (cls.confianca === "baixa") {
-          temDuvida = true;
+        }
+      } else {
+        for (const anexo of email.anexos) {
+          const cls = classificarAnexo(anexo.nome, email.assunto);
+
+          /* O primeiro envio já trouxe este arquivo: o reencaminhamento não
+             precisa empilhar uma segunda cópia na mesma fatura. */
+          const { data: jaAnexado } = await db
+            .from("documentos")
+            .select("id")
+            .eq("fatura_id", fatura.id)
+            .eq("nome_arquivo", anexo.nome)
+            .maybeSingle();
+
+          if (jaAnexado) continue;
+
+          const nomeSeguro = anexo.nome.replace(/[^\w.\-]/g, "_").slice(-120);
+          const path = `${fornecedor.id}/${fatura.id}/${Date.now()}-${nomeSeguro}`;
+
+          const up = await db.storage
+            .from(BUCKET_DOCUMENTOS)
+            .upload(path, anexo.conteudo, { contentType: anexo.mime, upsert: false });
+
+          await db.from("documentos").insert({
+            fatura_id: fatura.id,
+            fornecedor_id: fornecedor.id,
+            tipo: cls.tipo,
+            confianca: cls.confianca,
+            nome_arquivo: anexo.nome,
+            storage_path: up.error ? null : path,
+            tamanho_bytes: anexo.tamanho,
+            mime_type: anexo.mime,
+            origem: "email",
+            email_message_id: email.messageId,
+            email_assunto: email.assunto.slice(0, 500),
+            email_remetente: email.remetente,
+            recebido_em: email.data.toISOString(),
+          });
+
+          salvos++;
+
+          if (cls.tipo === "nota_fiscal") {
+            temNota = true;
+            // o número lido dentro da nota vence o que o nome do arquivo sugere
+            numeroNota ??= doc.numeroNota ?? extrairNumeroNota(`${anexo.nome} ${email.assunto}`);
+          } else if (cls.tipo === "fatura" || cls.tipo === "boleto") {
+            temFatura = true;
+          } else if (cls.tipo === "recibo") {
+            temRecibo = true;
+          } else if (cls.confianca === "baixa") {
+            temDuvida = true;
+          }
         }
       }
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Search, RefreshCw, CalendarPlus, FileCheck2, Send, Printer,
-  AlertTriangle, Filter, Eye, Loader2, MessageCircle,
+  AlertTriangle, Filter, Eye, Loader2, MessageCircle, ExternalLink,
 } from "lucide-react";
 import { Badge, Modal, Vazio, Aviso, useAviso, BotaoAcao } from "@/components/UI";
 import {
@@ -44,6 +44,7 @@ export type FaturaLinha = {
   numero_nota: string | null;
   exige_recibo: boolean;
   pagamento_automatico: boolean;
+  documento_via_link: boolean;
   pago_em: string | null;
 };
 
@@ -445,12 +446,24 @@ export function TelaFaturas({
                           !f.precisa_revisao && (
                             <span className="text-xs text-lube-200/30">—</span>
                           )}
-                        {f.nota_fiscal_recebida_em && <Selo tipo="nota" />}
-                        {/* Conta que se encerra com recibo não recebe fatura
-                            nem boleto: chamar o documento de "Fatura" ali diria
-                            que há algo a pagar, quando o pagamento já saiu. */}
-                        {f.fatura_recebida_em && (
-                          <Selo tipo={f.exige_recibo ? "recibo" : "fatura"} />
+                        {/*
+                          Conta cujo documento chega como link do portal (a
+                          SAAM, via ContaAzul): nota e boleto são a mesma
+                          página — mostrar os dois selos separados sugeriria
+                          dois arquivos que não existem.
+                        */}
+                        {f.documento_via_link ? (
+                          f.fatura_recebida_em && <Selo tipo="portal" />
+                        ) : (
+                          <>
+                            {f.nota_fiscal_recebida_em && <Selo tipo="nota" />}
+                            {/* Conta que se encerra com recibo não recebe fatura
+                                nem boleto: chamar o documento de "Fatura" ali diria
+                                que há algo a pagar, quando o pagamento já saiu. */}
+                            {f.fatura_recebida_em && (
+                              <Selo tipo={f.exige_recibo ? "recibo" : "fatura"} />
+                            )}
+                          </>
                         )}
                         {f.precisa_revisao && (
                           <span title="Documento recebido aguardando conferência">
@@ -589,12 +602,14 @@ const SELOS = {
     titulo: "Nota fiscal recebida",
     // verde: documento fiscal
     estilo: { borderColor: "rgba(25,158,112,.45)", background: "rgba(25,158,112,.14)", color: "#7fe3bd" },
+    Icone: FileCheck2,
   },
   fatura: {
     rotulo: "Fatura",
     titulo: "Fatura/boleto recebido",
     // azul: documento de pagamento a fazer
     estilo: { borderColor: "rgba(57,135,229,.45)", background: "rgba(57,135,229,.14)", color: "#9ec5f4" },
+    Icone: FileCheck2,
   },
   recibo: {
     rotulo: "Recibo",
@@ -605,18 +620,27 @@ const SELOS = {
      * das linhas de nota e boleto, que são a maioria.
      */
     estilo: { borderColor: "rgba(217,142,38,.55)", background: "rgba(217,142,38,.16)", color: "#f0c674" },
+    Icone: FileCheck2,
+  },
+  portal: {
+    rotulo: "Link do portal",
+    titulo: "Nota e boleto disponíveis no portal do fornecedor — abra a fatura para ver os detalhes",
+    // mesmo azul da fatura: é a mesma família de documento, só entregue como link
+    estilo: { borderColor: "rgba(57,135,229,.45)", background: "rgba(57,135,229,.14)", color: "#9ec5f4" },
+    // o ícone já avisa que o clique sai do painel, antes mesmo de ler o rótulo
+    Icone: ExternalLink,
   },
 } as const;
 
 function Selo({ tipo }: { tipo: keyof typeof SELOS }) {
-  const { rotulo, titulo, estilo } = SELOS[tipo];
+  const { rotulo, titulo, estilo, Icone } = SELOS[tipo];
   return (
     <span
       title={titulo}
       className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold"
       style={estilo}
     >
-      <FileCheck2 size={11} />
+      <Icone size={11} />
       {rotulo}
     </span>
   );

@@ -23,6 +23,7 @@ type Documento = {
   email_assunto: string | null;
   recebido_em: string;
   storage_path: string | null;
+  url_externa: string | null;
   confirmado_em: string | null;
 };
 
@@ -444,7 +445,12 @@ export function DetalheFatura({
                   background: d.confianca === "baixa" ? "rgba(144,133,233,.07)" : "rgba(255,255,255,.025)",
                 }}
               >
-                <FileText size={17} className="shrink-0 text-lube-300" />
+                {/* link de portal não é um arquivo nosso — o ícone diz isso antes de ler o rótulo */}
+                {d.tipo === "link_portal" ? (
+                  <ExternalLink size={17} className="shrink-0 text-lube-300" />
+                ) : (
+                  <FileText size={17} className="shrink-0 text-lube-300" />
+                )}
 
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-white">{d.nome_arquivo}</div>
@@ -480,11 +486,11 @@ export function DetalheFatura({
                 )}
 
                 <div className="flex items-center gap-1">
-                  {d.storage_path && (
+                  {(d.storage_path || d.url_externa) && (
                     <button
                       onClick={() => abrirDocumento(d.id)}
                       className="rounded-lg p-2 text-lube-300 transition hover:bg-white/10 hover:text-white"
-                      title="Abrir / imprimir"
+                      title={d.url_externa ? "Abrir no portal do fornecedor" : "Abrir / imprimir"}
                     >
                       <ExternalLink size={15} />
                     </button>
@@ -563,6 +569,9 @@ function corDoTipo(tipo: TipoDocumento): React.CSSProperties {
     nota_fiscal: ["25,158,112", "#7fe3bd"],   // verde
     fatura:      ["57,135,229", "#9ec5f4"],   // azul
     boleto:      ["57,135,229", "#9ec5f4"],   // azul — também é pagamento
+    // mesmo azul da fatura: é a mesma família de documento, só entregue como
+    // link em vez de anexo
+    link_portal: ["57,135,229", "#9ec5f4"],
     // âmbar: o recibo é o único que comprova pagamento já feito, não a fazer
     recibo:      ["217,142,38", "#f0c674"],
     contrato:    ["144,133,233", "#c9c2f5"],  // violeta

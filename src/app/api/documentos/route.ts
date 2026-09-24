@@ -104,8 +104,14 @@ export async function POST(req: Request) {
   // o upload manual também baixa a pendência da fatura
   const agora = new Date().toISOString();
   const patch: Record<string, unknown> = { precisa_revisao: false };
-  if (tipo === "nota_fiscal") patch.nota_fiscal_recebida_em = agora;
-  if (tipo === "fatura" || tipo === "boleto") patch.fatura_recebida_em = agora;
+  /* "recibo" e "link_portal" também encerram o lado financeiro da fatura —
+     sem isto, um recibo enviado à mão (caso do ChatGPT e do Supabase, cujo
+     e-mail o robô não alcança) ficava marcado como recebido mas a fatura
+     continuava esperando "o boleto". */
+  if (tipo === "nota_fiscal" || tipo === "link_portal") patch.nota_fiscal_recebida_em = agora;
+  if (tipo === "fatura" || tipo === "boleto" || tipo === "recibo" || tipo === "link_portal") {
+    patch.fatura_recebida_em = agora;
+  }
   if (fatura.status === "aguardando_documentos") patch.status = "documentos_recebidos";
 
   await db.from("faturas").update(patch).eq("id", faturaId);

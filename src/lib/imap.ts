@@ -153,6 +153,13 @@ export async function lerEmailsRecentes(opts: {
   /** Endereços e domínios (`@dominio.com.br`) dos fornecedores cadastrados. */
   remetentesConhecidos?: string[];
   /*
+   * Endereços/domínios de fornecedor cujo documento chega como link de
+   * portal, sem anexo (a SAAM, via ContaAzul). Sem esta lista, a triagem
+   * abaixo descarta esse e-mail antes mesmo de o robô decidir qualquer coisa
+   * — ela nunca vira "candidato" porque não tem PDF nem XML.
+   */
+  remetentesSemAnexo?: string[];
+  /*
    * Message-IDs que o robô já processou em execuções anteriores. Descartar
    * esses antes da fase cara é o que faz o limite render: antes, baixar de
    * novo os mesmos e-mails consumia a cota e empurrava os documentos novos
@@ -173,6 +180,16 @@ export async function lerEmailsRecentes(opts: {
     if (enderecos.has(remetente)) return true;
     const dom = remetente.split("@")[1] ?? "";
     return dominios.has(dom);
+  };
+
+  const semAnexo = (opts.remetentesSemAnexo ?? []).map((e) => e.toLowerCase().trim());
+  const enderecosSemAnexo = new Set(semAnexo.filter((e) => !e.startsWith("@")));
+  const dominiosSemAnexo = new Set(semAnexo.filter((e) => e.startsWith("@")).map((e) => e.slice(1)));
+
+  const podeVirSemAnexo = (remetente: string): boolean => {
+    if (enderecosSemAnexo.has(remetente)) return true;
+    const dom = remetente.split("@")[1] ?? "";
+    return dominiosSemAnexo.has(dom);
   };
 
   // Sem fornecedores cadastrados não há a que vincular documento algum —
@@ -232,7 +249,7 @@ export async function lerEmailsRecentes(opts: {
       const remetente = (from?.address ?? "").toLowerCase().trim();
 
       if (!interessa(remetente)) continue;
-      if (!temAnexoRelevante(msg.bodyStructure)) continue;
+      if (!temAnexoRelevante(msg.bodyStructure) && !podeVirSemAnexo(remetente)) continue;
 
       /*
        * E-mail já processado antes não precisa ser baixado de novo. Isso era
@@ -288,12 +305,16 @@ export async function lerEmailsRecentes(opts: {
               conteudo: a.content as Buffer,
             }));
 
-          if (anexos.length === 0) continue; // o bodyStructure prometeu, mas era assinatura
+          const remetenteReal = (from?.address ?? "").toLowerCase().trim();
+
+          // o bodyStructure prometeu anexo e era só assinatura — a menos que
+          // este remetente seja um dos que mandam link em vez de anexo
+          if (anexos.length === 0 && !podeVirSemAnexo(remetenteReal)) continue;
 
           emails.push({
             messageId: parsed.messageId ?? msg.envelope?.messageId ?? `uid-${msg.uid}-${pasta}`,
             uid: msg.uid,
-            remetente: (from?.address ?? "").toLowerCase().trim(),
+            remetente: remetenteReal,
             remetenteNome: from?.name ?? "",
             assunto: parsed.subject ?? "(sem assunto)",
             data: parsed.date ?? msg.envelope?.date ?? new Date(),
@@ -480,4 +501,30 @@ export function extrairVencimento(texto: string, referencia?: Date): string | nu
 export function extrairNumeroNota(texto: string): string | null {
   const m = texto.match(/\b(?:nf|nfe|nfse|nota|n[º°.]?)\s*[:\-]?\s*(\d{3,12})\b/i);
   return m ? m[1] : null;
+}
+
+/*
+ * Fornecedor que manda nota e boleto como link de portal, não anexo.
+ *
+ * A SAAM migrou da Omie (anexava PDF) para o ContaAzul (só link), e trocou de
+ * formato de link pelo caminho — os dois convivem em mensagens antigas e
+ * recentes:
+ *   https://app.contaazul.com/pub/#/invoice/v2/<id>
+ *   https://faturas.contaazul.com/#/fatura/visualizar/<id>
+ *
+ * O padrão é restrito de propósito, ao contrário de "qualquer link https": o
+ * mesmo e-mail carrega link de rastreio do SendGrid, link de ajuda, link do
+ * WhatsApp do suporte. Pegar o primeiro link que aparecer pegaria um desses.
+ */
+const PADROES_LINK_PORTAL = [
+  /https:\/\/app\.contaazul\.com\/pub\/#\/invoice\/v2\/[0-9a-f-]+/i,
+  /https:\/\/faturas\.contaazul\.com\/#\/fatura\/visualizar\/[0-9a-f-]+/i,
+];
+
+export function extrairLinkDoPortal(texto: string): string | null {
+  for (const padrao of PADROES_LINK_PORTAL) {
+    const m = texto.match(padrao);
+    if (m) return m[0];
+  }
+  return null;
 }

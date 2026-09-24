@@ -20,7 +20,7 @@ export type StatusChamado =
 
 export type PrioridadeChamado = "baixa" | "media" | "alta" | "critica";
 export type TipoDocumento =
-  | "nota_fiscal" | "fatura" | "boleto" | "recibo" | "contrato" | "outro";
+  | "nota_fiscal" | "fatura" | "boleto" | "recibo" | "link_portal" | "contrato" | "outro";
 export type Periodicidade = "mensal" | "bimestral" | "trimestral" | "semestral" | "anual" | "avulso";
 export type StatusAtivo = "em_uso" | "estoque" | "manutencao" | "descartado";
 
@@ -124,6 +124,7 @@ export const TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
   fatura: "Fatura",
   boleto: "Boleto",
   recibo: "Recibo",
+  link_portal: "Link do portal",
   contrato: "Contrato",
   outro: "Outro",
 };

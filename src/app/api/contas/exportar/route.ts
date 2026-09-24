@@ -18,6 +18,7 @@ type ContaExport = {
   exige_fatura: boolean;
   exige_recibo: boolean;
   pagamento_automatico: boolean;
+  documento_via_link: boolean;
   cobranca_ativa: boolean;
   centro_custo: string | null;
   ativo: boolean;
@@ -43,7 +44,7 @@ export async function GET(req: Request) {
   let q = db
     .from("contas")
     .select(
-      "descricao, identificador, valor_previsto, periodicidade, dia_vencimento, exige_nota_fiscal, exige_fatura, exige_recibo, pagamento_automatico, cobranca_ativa, centro_custo, ativo, observacoes, fornecedores(nome, canal_cobranca), categorias_custo(nome)"
+      "descricao, identificador, valor_previsto, periodicidade, dia_vencimento, exige_nota_fiscal, exige_fatura, exige_recibo, pagamento_automatico, documento_via_link, cobranca_ativa, centro_custo, ativo, observacoes, fornecedores(nome, canal_cobranca), categorias_custo(nome)"
     )
     .order("descricao");
 
@@ -85,14 +86,18 @@ export async function GET(req: Request) {
     valor: situacao === "ativas" ? "Ativas" : situacao === "inativas" ? "Inativas" : "Todas",
   });
 
-  const exige = (c: ContaExport) =>
-    [
-      c.exige_nota_fiscal ? "NF" : null,
-      c.exige_fatura ? "Boleto" : null,
-      c.exige_recibo ? "Recibo" : null,
-    ]
-      .filter(Boolean)
-      .join(" + ") || "—";
+  const exige = (c: ContaExport) => {
+    if (c.documento_via_link) return "Link do portal";
+    return (
+      [
+        c.exige_nota_fiscal ? "NF" : null,
+        c.exige_fatura ? "Boleto" : null,
+        c.exige_recibo ? "Recibo" : null,
+      ]
+        .filter(Boolean)
+        .join(" + ") || "—"
+    );
+  };
 
   const buffer = await gerarPlanilha<ContaExport>({
     titulo: "Contas e contratos",
