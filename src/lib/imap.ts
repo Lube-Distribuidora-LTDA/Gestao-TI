@@ -318,7 +318,14 @@ export async function lerEmailsRecentes(opts: {
             remetenteNome: from?.name ?? "",
             assunto: parsed.subject ?? "(sem assunto)",
             data: parsed.date ?? msg.envelope?.date ?? new Date(),
-            textoCorpo: (parsed.text ?? "").slice(0, 4000),
+            /*
+             * Espaço de largura zero (U+200B) e primos (ZWNJ, ZWJ, BOM) somem
+             * aqui, na origem — a ContaAzul os insere entre dígitos de data
+             * ("15/09/2026", invisível no e-mail) e isso quebrava qualquer
+             * regex de data rio abaixo. Limpar uma vez aqui poupa cada função
+             * de extração de reimplementar a mesma limpeza.
+             */
+            textoCorpo: (parsed.text ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").slice(0, 4000),
             anexos,
           });
         } catch {
@@ -472,17 +479,34 @@ export function extrairCompetencia(texto: string, recebidoEm?: Date): string | n
  * `referencia` completa o ano quando a data vem sem ele ("Vencimento 15/09").
  */
 export function extrairVencimento(texto: string, referencia?: Date): string | null {
-  const t = texto.replace(/\s+/g, " ");
+  /*
+   * Dois problemas de codificação, além de espaço duplo, precisam sumir antes
+   * de qualquer regex:
+   *
+   *   - espaço de largura zero (U+200B) — a ContaAzul o insere entre o dia, o
+   *     mês e o ano ("15/09/2026"), invisível no e-mail mas que quebra
+   *     qualquer [\/.\-] logo depois de um "/";
+   *   - a mesma limpeza vale para ZWNJ/ZWJ/BOM, que aparecem por motivos
+   *     parecidos em texto convertido de HTML para texto puro.
+   */
+  const t = texto.replace(/[\u200B-\u200D\uFEFF]/g, "").replace(/\s+/g, " ");
 
-  // "Vencimento 15/09/2026" ou "Venc.: 15-09-2026"
-  const comAno = t.match(/venc[a-zà-ú]*[\s:.\-–]{0,12}(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/i);
+  /*
+   * O trecho entre "vencimento" e a data pode ser só pontuação ("Venc.:") ou
+   * ter uma palavra de ligação no meio ("vencimento em", "vencimento para o
+   * dia") — a ContaAzul usa "em". Por isso o quantificador é preguiçoso sobre
+   * qualquer caractere, não uma lista fixa de separadores: ele para na
+   * primeira data completa que encontrar, então não avança para uma data mais
+   * distante e desligada do rótulo.
+   */
+  const comAno = t.match(/venc[a-zà-ú]*.{0,20}?(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/i);
   if (comAno) {
     const [, d, m, a] = comAno;
     return `${a}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
 
   // "Vencimento15/09" — sem ano, e às vezes sem espaço antes do número
-  const semAno = t.match(/venc[a-zà-ú]*[\s:.\-–]{0,12}(\d{1,2})[\/.\-](\d{1,2})(?![\/.\-]?\d)/i);
+  const semAno = t.match(/venc[a-zà-ú]*.{0,20}?(\d{1,2})[\/.\-](\d{1,2})(?![\/.\-]?\d)/i);
   if (semAno && referencia) {
     const dia = Number(semAno[1]);
     const mes = Number(semAno[2]);
