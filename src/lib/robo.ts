@@ -716,8 +716,37 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
           temFatura = true;
         }
       } else {
-        for (const anexo of email.anexos) {
-          const cls = classificarAnexo(anexo.nome, email.assunto);
+        /*
+         * Assunto tipo "nf+bol" ou "nf e boleto" cita os dois documentos, mas
+         * classificarAnexo() só olha um anexo de cada vez e, sem pista no
+         * nome do arquivo, cai pro assunto — onde "boleto" ganha de "nota"
+         * (regra pensada pra quando o assunto anuncia só o boleto). Isso
+         * classificava a "Fatura de Locação" da IMPREMIX (arquivo sem "nf"
+         * nem "boleto" no nome, só o número) como boleto, porque o e-mail
+         * também trazia um .bol.pdf de verdade.
+         *
+         * Corrige com o contexto que só o e-mail inteiro tem: se ALGUM anexo
+         * já foi identificado como boleto com certeza (pista no nome, não no
+         * assunto ambíguo), um outro anexo que só virou "boleto" por causa do
+         * assunto é, na prática, a nota que teria vindo desacompanhada de
+         * pista — não um segundo boleto.
+         */
+        // confiança "alta" só existe quando o próprio nome do arquivo deu a
+        // pista (a via do assunto nunca passa de "media") — por isso identifica
+        // com segurança um boleto já resolvido, sem precisar reclassificar.
+        const classificacoes = email.anexos.map((a) => classificarAnexo(a.nome, email.assunto));
+        const temBoletoPeloNome = classificacoes.some((c) => c.tipo === "boleto" && c.confianca === "alta");
+        if (temBoletoPeloNome) {
+          for (const c of classificacoes) {
+            if (c.tipo === "boleto" && c.confianca === "media") {
+              c.tipo = "nota_fiscal";
+            }
+          }
+        }
+
+        for (let i = 0; i < email.anexos.length; i++) {
+          const anexo = email.anexos[i];
+          const cls = classificacoes[i];
 
           /* O primeiro envio já trouxe este arquivo: o reencaminhamento não
              precisa empilhar uma segunda cópia na mesma fatura. */
