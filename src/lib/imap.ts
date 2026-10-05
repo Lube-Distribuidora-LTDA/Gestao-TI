@@ -361,7 +361,14 @@ export type ClassificacaoAnexo = {
   confianca: "alta" | "media" | "baixa";
 };
 
-const PISTA_NOTA   = /(nfse|nfs-e|nf-e|nf_e|nfe|nota[\s_-]?fiscal|danfe|\bnf\b)/i;
+/*
+ * O `\bnf\d` cobre "NF_586259....pdf", como a Itanet nomeia a nota: o `_` é
+ * caractere de palavra, então não há fronteira entre "nf" e ele, e o `\bnf\b`
+ * sozinho não casava. A nota ficava classificada como "fatura" pelo assunto, a
+ * fatura nunca dava a nota por recebida e o painel pedia para sempre um
+ * documento que já estava anexado ali.
+ */
+const PISTA_NOTA   = /(nfse|nfs-e|nf-e|nf_e|nfe|nota[\s_-]?fiscal|danfe|\bnf\b|\bnf[\s_.\-]?\d)/i;
 const PISTA_BOLETO = /(boleto|\bbol\b|cobran[çc]a|t[íi]tulo)/i;
 const PISTA_FATURA = /(fatura|invoice|demonstrativo|conta[\s_-]?de)/i;
 const PISTA_CONTRATO = /(contrato|aditivo|proposta|relat[óo]rio|ata[\s_-]|termo)/i;

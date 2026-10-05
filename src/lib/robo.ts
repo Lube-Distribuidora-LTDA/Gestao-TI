@@ -615,6 +615,30 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         fatura = data?.[0] ?? null;
       }
 
+      /*
+       * O documento não diz a que mês pertence, mas diz quando vence.
+       *
+       * É o caso da 2ª via: a Itanet reenvia o boleto de um ciclo já aberto e
+       * esse PDF não traz competência nenhuma. Sem isto, ele era datado pelo
+       * dia em que chegou — a 2ª via do boleto que vencia em 10/09 chegou em
+       * 15/09 e foi arquivada como se fosse do ciclo de setembro.
+       *
+       * O vencimento não é usado aqui para *deduzir* um mês (essa dedução é
+       * justamente o que a regra da competência evita, logo abaixo): ele só
+       * reencontra uma fatura que já existe e já tem essa data. Por isso exige
+       * acerto único — com duas candidatas não dá para saber de qual é, e aí o
+       * caminho normal decide.
+       */
+      if (!fatura && !doc.competencia && vencCitado) {
+        const { data } = await db
+          .from("faturas")
+          .select("id, competencia, numero_nota")
+          .eq("conta_id", conta.id)
+          .eq("vencimento", vencCitado)
+          .limit(2);
+        if (data?.length === 1) fatura = data[0];
+      }
+
       if (!fatura && compCitada) {
         const { data } = await db
           .from("faturas")

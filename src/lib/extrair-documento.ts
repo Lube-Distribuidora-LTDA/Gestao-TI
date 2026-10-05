@@ -246,6 +246,30 @@ function valorEmTexto(texto: string): number | undefined {
   return undefined;
 }
 
+/**
+ * Mês de referência escrito no próprio documento ("Competência 09/2026").
+ *
+ * Exige o rótulo colado no número, e não aceita uma data solta qualquer. A
+ * página de um boleto é cheia de números — emissão, processamento, vencimento,
+ * chave de acesso — e qualquer `MM/AAAA` achado no meio dela datava o papel no
+ * mês errado. Com o rótulo, ou o documento diz a que mês pertence, ou devolve
+ * indefinido e a decisão continua com quem já decidia antes.
+ *
+ * Sem isto, a competência de todo PDF caía no último recurso lá do robô — o
+ * mês em que o e-mail chegou. A Itanet emite a nota do mês fechado no dia 1º
+ * do mês seguinte, então a nota de setembro chegava em outubro e era arquivada
+ * como se fosse de outubro: mês após mês, a nota e o boleto de um ciclo
+ * apareciam na fatura do ciclo seguinte.
+ */
+function competenciaEmTexto(texto: string): string | undefined {
+  const t = texto.replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ");
+
+  const m = t.match(/compet[êe]ncia[^\d]{0,15}(0?[1-9]|1[0-2])\s*\/\s*(20\d{2})/i);
+  if (!m) return undefined;
+
+  return `${m[2]}-${m[1].padStart(2, "0")}-01`;
+}
+
 export function extrairDeTextoPdf(texto: string): DadosDocumento {
   const numeroNota =
     texto.match(/(?:n[ºo°.]?\s*(?:da\s*)?nota|nfs-?e\s*n[ºo°.]?|n[úu]mero\s*da\s*nfs-?e)[^\d]{0,12}(\d{2,10})/i)?.[1] ??
@@ -258,6 +282,7 @@ export function extrairDeTextoPdf(texto: string): DadosDocumento {
     numeroNota,
     valorTotal: codigo.valor ?? valorEmTexto(texto),
     vencimento: codigo.vencimento ?? vencimentoEmTexto(texto),
+    competencia: competenciaEmTexto(texto),
     fonte: "pdf_texto",
     confianca: codigo.vencimento ? "alta" : "media",
   };
