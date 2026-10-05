@@ -650,15 +650,46 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
         // competência conhecida que ainda não existe: abre agora, no mês certo
         if (!fatura) {
+          /*
+           * Quantos meses separam a competência do vencimento muda conforme o
+           * fornecedor: a Itanet fecha o mês e cobra no seguinte, a SAAM cobra
+           * dentro do próprio mês de referência. Supor "mês seguinte" para
+           * todo mundo datava a cobrança da SAAM 30 dias à frente, e como os
+           * e-mails dela não trazem data nenhuma — só o link do portal — nada
+           * mais adiante corrigia o palpite.
+           *
+           * A distância sai do histórico da própria conta, da competência mais
+           * recente que já existe. Assim uma data corrigida à mão uma vez
+           * passa a valer para os meses seguintes, em vez de o mesmo engano se
+           * repetir todo mês. O dia continua vindo do cadastro da conta: o
+           * histórico ensina o mês, não um dia excepcional de alguma remessa.
+           */
+          let meses = 1;
+          const { data: anterior } = await db
+            .from("faturas")
+            .select("competencia, vencimento")
+            .eq("conta_id", conta.id)
+            .order("competencia", { ascending: false })
+            .limit(1);
+
+          if (anterior?.[0]) {
+            const [ca, cm] = anterior[0].competencia.split("-").map(Number);
+            const [va, vm] = anterior[0].vencimento.split("-").map(Number);
+            const distancia = (va - ca) * 12 + (vm - cm);
+            // distância fora disso é sinal de dado torto; não serve de modelo
+            if (distancia >= 0 && distancia <= 2) meses = distancia;
+          }
+
           const vencimento =
             vencCitado ??
             (() => {
               const [a, m] = compCitada.split("-").map(Number);
-              const dia = conta.dia_vencimento ?? 10;
-              const ultimo = new Date(a, m, 0).getDate();
-              // a nota costuma vencer no mês seguinte ao de referência
-              const prox = new Date(a, m, Math.min(dia, ultimo));
-              return prox.toISOString().slice(0, 10);
+              const corrido = m - 1 + meses;
+              const ano = a + Math.floor(corrido / 12);
+              const mes = (corrido % 12) + 1;
+              const ultimo = new Date(ano, mes, 0).getDate();
+              const dia = Math.min(conta.dia_vencimento ?? 10, ultimo);
+              return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
             })();
 
           const { data: nova } = await db
@@ -668,7 +699,12 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
               competencia: compCitada,
               vencimento,
               valor_previsto: conta.valor_previsto ?? 0,
-              observacoes: "Competência aberta pelo robô ao receber o documento.",
+              /* Quem lê o painel precisa saber se a data veio do documento ou
+                 de um cálculo nosso — uma estimativa apresentada como certeza
+                 é o que fez a cobrança da SAAM parecer confirmada. */
+              observacoes: vencCitado
+                ? "Competência aberta pelo robô ao receber o documento."
+                : "Competência aberta pelo robô ao receber o documento. Nenhum documento informou o vencimento: a data foi estimada pelo cadastro da conta e pelo histórico — confira.",
             })
             .select("id, competencia, numero_nota")
             .single();
