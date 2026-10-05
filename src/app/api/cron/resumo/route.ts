@@ -50,7 +50,6 @@ export async function GET(req: Request) {
     chegaram: resumo.chegaram.length,
     faltando: resumo.faltando.length,
     revisar: resumo.revisar.length,
-    atrasoAntigo: resumo.atrasoAntigo.quantidade,
   };
 
   if (preview) {

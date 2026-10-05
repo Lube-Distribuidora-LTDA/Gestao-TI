@@ -22,7 +22,6 @@ export type ItemFatura = {
   valor: number;
   /** positivo = já venceu há N dias; negativo = vence em N dias */
   dias: number;
-  entregue: boolean;
   falta_nota: boolean;
   falta_fatura: boolean;
 };
@@ -40,7 +39,6 @@ export type Resumo = {
   venceHoje: ItemFatura[];
   venceEmBreve: ItemFatura[];
   venceuAgora: ItemFatura[];
-  atrasoAntigo: { quantidade: number; total: number };
   chegaram: ItemDocumento[];
   faltando: ItemFatura[];
   revisar: ItemFatura[];
@@ -93,7 +91,6 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
     vencimento: String(f.vencimento ?? ""),
     valor: Number(f.valor_efetivo ?? 0),
     dias: diasAte(String(f.vencimento ?? hoje)),
-    entregue: f.status === "entregue_contabilidade",
     falta_nota: Boolean(f.exige_nota_fiscal) && !f.nota_fiscal_recebida_em,
     falta_fatura: Boolean(f.exige_fatura) && !f.fatura_recebida_em,
   });
@@ -109,12 +106,6 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
   const venceuAgora = candidatas
     .filter((f) => f.dias > 0 && f.dias <= JANELA_ATRAS)
     .sort((a, b) => b.dias - a.dias);
-
-  const antigas = candidatas.filter((f) => f.dias > JANELA_ATRAS);
-  const atrasoAntigo = {
-    quantidade: antigas.length,
-    total: antigas.reduce((s, f) => s + f.valor, 0),
-  };
 
   /* Falta documento e ainda há tempo: é o que a cobrança automática persegue.
      Quem já venceu aparece nas seções de data, não duas vezes. */
@@ -157,7 +148,6 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
     venceHoje,
     venceEmBreve,
     venceuAgora,
-    atrasoAntigo,
     chegaram: [...agrupados.values()],
     faltando,
     revisar,
@@ -177,11 +167,14 @@ function curto(nome: string, max = 28): string {
 
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
+/*
+ * Sem o selo "entregue à contabilidade" que a linha trazia antes: na Lube
+ * todo documento é assinado pelo Sergio e segue para a contabilidade, então a
+ * marca valia para todas as linhas e não separava nada — só ocupava a metade
+ * da largura do celular repetindo o óbvio.
+ */
 function linhaFatura(f: ItemFatura, quando: string): string {
-  /* Dizer "venceu" numa conta que o painel mostra como entregue soaria como
-     contradição; o aviso é outro — o documento andou, o pagamento talvez não. */
-  const selo = f.entregue ? " · entregue à contabilidade" : "";
-  return `• <b>${esc(curto(f.fornecedor_nome))}</b> — ${moeda(f.valor)}\n   ${fmtData(f.vencimento)} · ${quando}${selo}`;
+  return `• <b>${esc(curto(f.fornecedor_nome))}</b> — ${moeda(f.valor)}\n   ${fmtData(f.vencimento)} · ${quando}`;
 }
 
 /**
@@ -207,7 +200,7 @@ export function formatarResumoTelegram(r: Resumo, urlPainel?: string): string | 
   }
 
   if (r.venceuAgora.length) {
-    l.push("", `🔴 <b>Venceu e segue sem baixa</b>`);
+    l.push("", `🔴 <b>Venceu</b>`);
     r.venceuAgora.forEach((f) =>
       l.push(linhaFatura(f, f.dias === 1 ? "venceu ontem" : `venceu há ${f.dias} dias`))
     );
@@ -247,13 +240,6 @@ export function formatarResumoTelegram(r: Resumo, urlPainel?: string): string | 
       l.push(`• ${esc(curto(f.fornecedor_nome))} — falta ${o} · ${competenciaLabel(f.competencia)}`);
     });
     if (r.faltando.length > 6) l.push(`   <i>e mais ${r.faltando.length - 6}</i>`);
-  }
-
-  if (r.atrasoAntigo.quantidade) {
-    l.push(
-      "",
-      `<i>Fora da janela: ${r.atrasoAntigo.quantidade} fatura(s) venceram há mais de ${JANELA_ATRAS} dias e seguem sem baixa — ${moeda(r.atrasoAntigo.total)}.</i>`
-    );
   }
 
   if (urlPainel) l.push("", `<a href="${urlPainel}">Abrir o painel</a>`);
