@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { executarCobrancas } from "@/lib/robo";
 import { supabaseAdmin } from "@/lib/supabase";
 import { cronAutorizado } from "@/lib/cron";
+import { montarResumo, formatarResumoTelegram } from "@/lib/resumo-diario";
+import { enviarTelegram, telegramConfigurado } from "@/lib/telegram";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,10 +35,39 @@ export async function GET(req: Request) {
 
   const r = await executarCobrancas();
 
+  /*
+   * O resumo no Telegram sai daqui, e não de um agendamento próprio: o plano
+   * Hobby só permite dois, e os dois já são a leitura e esta cobrança. Esta
+   * também é a hora certa — a leitura das 08:00 já passou, então o resumo sabe
+   * o que chegou de madrugada.
+   *
+   * Falha de envio não pode derrubar a cobrança, que é o trabalho principal:
+   * o erro é reportado na resposta e a rodada segue dada como boa.
+   */
+  let resumo: { enviado: boolean; mensagens?: number; motivo?: string; erro?: string } = {
+    enviado: false,
+    motivo: "Telegram não configurado",
+  };
+
+  if (telegramConfigurado()) {
+    try {
+      const texto = formatarResumoTelegram(await montarResumo(), process.env.NEXT_PUBLIC_APP_URL);
+      if (!texto) {
+        resumo = { enviado: false, motivo: "nada a relatar" };
+      } else {
+        const envio = await enviarTelegram(texto);
+        resumo = { enviado: envio.enviadas > 0, mensagens: envio.enviadas, erro: envio.erro };
+      }
+    } catch (e) {
+      resumo = { enviado: false, erro: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   return NextResponse.json({
     tarefa: "cobranca",
     competencias,
     ...r,
+    resumo,
     detalhes: r.detalhes.slice(0, 30),
   });
 }
