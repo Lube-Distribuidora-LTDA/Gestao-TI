@@ -22,6 +22,7 @@ export type ItemFatura = {
   valor: number;
   /** positivo = já venceu há N dias; negativo = vence em N dias */
   dias: number;
+  entregue: boolean;
   falta_nota: boolean;
   falta_fatura: boolean;
 };
@@ -91,6 +92,7 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
     vencimento: String(f.vencimento ?? ""),
     valor: Number(f.valor_efetivo ?? 0),
     dias: diasAte(String(f.vencimento ?? hoje)),
+    entregue: f.status === "entregue_contabilidade",
     falta_nota: Boolean(f.exige_nota_fiscal) && !f.nota_fiscal_recebida_em,
     falta_fatura: Boolean(f.exige_fatura) && !f.fatura_recebida_em,
   });
@@ -168,13 +170,15 @@ function curto(nome: string, max = 28): string {
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 /*
- * Sem o selo "entregue à contabilidade" que a linha trazia antes: na Lube
- * todo documento é assinado pelo Sergio e segue para a contabilidade, então a
- * marca valia para todas as linhas e não separava nada — só ocupava a metade
- * da largura do celular repetindo o óbvio.
+ * O estado do documento entra nos **dois** sentidos, e é isso que o torna
+ * informação: na Lube todo documento acaba assinado pelo Sergio e entregue à
+ * contabilidade, então ver só o "entregue" seria a mesma palavra em toda
+ * linha. O que vale a leitura é a competência que ainda **não** passou por
+ * esse caminho — essa é a que espera uma ação.
  */
 function linhaFatura(f: ItemFatura, quando: string): string {
-  return `• <b>${esc(curto(f.fornecedor_nome))}</b> — ${moeda(f.valor)}\n   ${fmtData(f.vencimento)} · ${quando}`;
+  const estado = f.entregue ? "entregue à contabilidade" : "<b>ainda não entregue</b>";
+  return `• <b>${esc(curto(f.fornecedor_nome))}</b> — ${moeda(f.valor)}\n   ${fmtData(f.vencimento)} · ${quando} · ${estado}`;
 }
 
 /**
