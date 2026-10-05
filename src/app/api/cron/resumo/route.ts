@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { montarResumo, formatarResumoTelegram } from "@/lib/resumo-diario";
-import { enviarTelegram, telegramConfigurado } from "@/lib/telegram";
+import { enviarTelegram, telegramConfigurado, descobrirChats } from "@/lib/telegram";
 import { cronAutorizado } from "@/lib/cron";
 
 export const runtime = "nodejs";
@@ -26,6 +26,19 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const preview = url.searchParams.get("preview") === "1";
   const horas = Number(url.searchParams.get("horas") ?? 24);
+
+  // passo de configuração: mostra o chat_id a usar, sem expor o token
+  if (url.searchParams.get("descobrir") === "1") {
+    const { chats, erro } = await descobrirChats();
+    return NextResponse.json({
+      tarefa: "descobrir-chat",
+      chats,
+      erro,
+      dica: chats.length
+        ? "Grave o id em TELEGRAM_CHAT_ID na Vercel e faça um novo deploy."
+        : "Mande qualquer mensagem ao bot no Telegram e chame de novo (o Telegram guarda as atualizações por ~24h).",
+    });
+  }
 
   const resumo = await montarResumo(Number.isFinite(horas) && horas > 0 ? horas : 24);
   const texto = formatarResumoTelegram(resumo, process.env.NEXT_PUBLIC_APP_URL);

@@ -43,6 +43,42 @@ export function telegramConfigurado(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 }
 
+/**
+ * Descobre o `chat_id` a partir das mensagens que o bot recebeu.
+ *
+ * Existe para a configuração não exigir que o token circule fora da Vercel: o
+ * caminho comum seria abrir `api.telegram.org/bot<TOKEN>/getUpdates` no
+ * navegador, o que põe o segredo na barra de endereço, no histórico e em
+ * qualquer print da tela. Aqui a chamada sai do servidor e só os ids voltam.
+ *
+ * Só enxerga conversa que já mandou mensagem ao bot, e o Telegram guarda
+ * essas atualizações por cerca de 24h.
+ */
+export async function descobrirChats(): Promise<{ chats: Array<{ id: number; nome: string; tipo: string }>; erro?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { chats: [], erro: "TELEGRAM_BOT_TOKEN não configurado." };
+
+  const r = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+  const corpo = await r.json().catch(() => null);
+
+  if (!r.ok || !corpo?.ok) {
+    return { chats: [], erro: corpo?.description ?? `Telegram respondeu ${r.status}` };
+  }
+
+  const vistos = new Map<number, { id: number; nome: string; tipo: string }>();
+  for (const u of corpo.result ?? []) {
+    const c = u.message?.chat ?? u.channel_post?.chat;
+    if (!c?.id || vistos.has(c.id)) continue;
+    vistos.set(c.id, {
+      id: c.id,
+      nome: [c.first_name, c.last_name].filter(Boolean).join(" ") || c.title || c.username || "—",
+      tipo: c.type ?? "—",
+    });
+  }
+
+  return { chats: [...vistos.values()] };
+}
+
 export async function enviarTelegram(texto: string): Promise<EnvioTelegram> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chat = process.env.TELEGRAM_CHAT_ID;
