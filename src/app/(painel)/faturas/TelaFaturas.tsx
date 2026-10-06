@@ -65,6 +65,9 @@ export function TelaFaturas({
   const params = useSearchParams();
   const { aviso, mostrar, limpar } = useAviso();
 
+  // "2026-10" — o mês de hoje, para o atalho do seletor de vencimento
+  const mesCorrente = competenciaAtual().slice(0, 7);
+
   const [linhas, setLinhas] = useState<FaturaLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
@@ -180,9 +183,16 @@ export function TelaFaturas({
               onChange={(e) => setFiltros({ ...filtros, mesVencimento: e.target.value, filtro: "" })}
             >
               <option value="">Mês atual + atrasadas</option>
-              {mesesVencimento.map((m) => (
-                <option key={m} value={m}>{competenciaLabel(m + "-01")}</option>
-              ))}
+              {/* O padrão junta o mês corrente com o que ficou para trás, para
+                  nada atrasado sumir de vista. Quem quer fechar só o mês —
+                  conferir o que vence agora, sem a bagagem — precisava procurar
+                  o mês na lista abaixo; este atalho poupa isso. */}
+              <option value={mesCorrente}>Só {competenciaLabel(mesCorrente + "-01")} (mês atual)</option>
+              {mesesVencimento
+                .filter((m) => m !== mesCorrente)
+                .map((m) => (
+                  <option key={m} value={m}>{competenciaLabel(m + "-01")}</option>
+                ))}
             </select>
           </div>
 
