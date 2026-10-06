@@ -50,14 +50,23 @@ export async function GET(req: Request) {
     const primeiroDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
       .toISOString()
       .slice(0, 10);
+    // dia 0 do mês seguinte é o último dia deste mês
+    const ultimoDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
+      .toISOString()
+      .slice(0, 10);
 
     /*
-     * Do primeiro dia do mês em diante, OU vencida e ainda em aberto. O
-     * "ou" precisa ser uma condição só, senão o filtro de mês esconderia
-     * justamente as contas atrasadas que exigem ação.
+     * O mês corrente **fechado**, mais o que ficou atrasado e ainda está em
+     * aberto. O "ou" precisa ser uma condição só, senão o recorte do mês
+     * esconderia justamente as contas atrasadas que exigem ação.
+     *
+     * O limite superior importa: sem ele o corte era "do dia 1º em diante" e
+     * trazia junto o que vence nos meses seguintes. Com as competências de
+     * novembro abertas, a lista de outubro passou de 26 para 35 linhas — e o
+     * mês corrente, que é o que se fecha agora, se perdia no meio.
      */
     q = q.or(
-      `vencimento.gte.${primeiroDoMes},` +
+      `and(vencimento.gte.${primeiroDoMes},vencimento.lte.${ultimoDoMes}),` +
         `and(vencimento.lt.${primeiroDoMes},status.in.(aguardando_documentos,documentos_recebidos,em_aprovacao))`
     );
   }
