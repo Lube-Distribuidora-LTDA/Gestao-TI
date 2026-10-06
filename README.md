@@ -3,6 +3,24 @@
 Sistema de controle do departamento de TI: contas e contratos, cobrança automática
 de notas fiscais por e-mail, dashboard de custos, portal de chamados e inventário.
 
+## Acesso
+
+O sistema é protegido pela **Sentinela Lube**: só entra quem tem login no
+[Painel Lube](https://painel-lube-distribuidora.vercel.app) com permissão para o Gestão TI;
+quem não tem vai para a tela de login do portal. Depois da Sentinela, o login próprio do
+sistema (`/login`) continua valendo como antes.
+
+Ficam abertos para quem **não** tem conta no Painel só a abertura e o acompanhamento de
+chamado (`/abrir-chamado`, `/acompanhar`, `/api/chamados/publico`) e o robô da Vercel
+(`/api/cron/`, que já exige `CRON_SECRET`).
+
+O guarda mora em `src/lib/sentinela-guarda.ts` (núcleo, sem segredo) e é chamado na primeira
+linha de `src/middleware.ts`, com a constante `FECHADO`. Quem liga o "exige login" é o banco da
+Sentinela (`sentinela.sistemas`, projeto `gestao-ti`: `exige_login` e `rotas_publicas`); se a
+central não responder, o guarda fecha mesmo assim e só passa quem tem sessão do Painel ou do
+próprio sistema. Na instalação (2026-10-06) o `exige_login` ainda estava desligado. Instalação
+e emergência: `guarda/LEIA-ME.md` no repositório do Painel Lube.
+
 ---
 
 ## 1. O que o sistema faz
@@ -242,8 +260,9 @@ src/
 │   ├── templates.ts       e-mails (cobrança e chamados)
 │   ├── robo.ts            motor: processarEmails() e executarCobrancas()
 │   ├── auth.ts            sessão assinada (HMAC)
+│   ├── sentinela-guarda.ts guarda da Sentinela Lube (ver "Acesso")
 │   └── crud-config.ts     whitelist do CRUD
-└── middleware.ts          proteção das rotas
+└── middleware.ts          Sentinela primeiro, depois a proteção das rotas
 ```
 
 **Projeto Supabase:** `GESTAO TI` (`mpupmrzcbygwpblrewrb`, região São Paulo)
