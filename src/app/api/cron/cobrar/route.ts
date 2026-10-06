@@ -22,15 +22,26 @@ export async function GET(req: Request) {
     return NextResponse.json({ erro: "Não autorizado." }, { status: 401 });
   }
 
-  let competencias = { criadas: 0, existentes: 0 };
+  /*
+   * O erro de abrir competências não derruba a cobrança do que já existe —
+   * mas precisa aparecer. Um `catch` vazio aqui escondeu, por semanas, que
+   * nenhuma competência estava sendo aberta: em 06/10/2026 havia 26 contas
+   * ativas e 4 faturas de outubro, todas criadas pelo robô ao receber
+   * documento. Falha silenciosa num passo diário é indistinguível de sucesso.
+   */
+  let competencias: { criadas: number; existentes: number; erro?: string } = {
+    criadas: 0,
+    existentes: 0,
+  };
   try {
-    const { data } = await supabaseAdmin().rpc("gerar_faturas_competencia", {
+    const { data, error } = await supabaseAdmin().rpc("gerar_faturas_competencia", {
       p_competencia: null,
     });
+    if (error) throw new Error(error.message);
     const r = Array.isArray(data) ? data[0] : data;
     competencias = { criadas: r?.criadas ?? 0, existentes: r?.existentes ?? 0 };
-  } catch {
-    // falha ao abrir competências não impede a cobrança das que já existem
+  } catch (e) {
+    competencias.erro = e instanceof Error ? e.message : String(e);
   }
 
   const r = await executarCobrancas();
