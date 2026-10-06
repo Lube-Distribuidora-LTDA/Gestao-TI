@@ -18,8 +18,10 @@ O guarda mora em `src/lib/sentinela-guarda.ts` (núcleo, sem segredo) e é chama
 linha de `src/middleware.ts`, com a constante `FECHADO`. Quem liga o "exige login" é o banco da
 Sentinela (`sentinela.sistemas`, projeto `gestao-ti`: `exige_login` e `rotas_publicas`); se a
 central não responder, o guarda fecha mesmo assim e só passa quem tem sessão do Painel ou do
-próprio sistema. Na instalação (2026-10-06) o `exige_login` ainda estava desligado. Instalação
-e emergência: `guarda/LEIA-ME.md` no repositório do Painel Lube.
+próprio sistema. Desde 2026-10-06 o `exige_login` está **ligado** (`true`), com essas quatro
+rotas em `rotas_publicas` (`/abrir-chamado`, `/acompanhar`, `/api/chamados/publico`,
+`/api/cron/`): sem sessão, o resto (inclusive `/login`) vai para o portal e `/api/*` responde
+401. Instalação e emergência: `guarda/LEIA-ME.md` no repositório do Painel Lube.
 
 ---
 
