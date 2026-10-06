@@ -58,15 +58,15 @@ const TIPO_LEGIVEL: Record<string, string> = {
 /**
  * Quantos dias à frente avisar, e quantos dias atrás ainda repetir.
  *
- * Duas semanas à frente porque é o prazo em que dá para agir: as contas da
- * Lube se concentram nos dias 10, 15, 16, 17 e 24, então uma janela de 5 dias
- * só mostrava a conta do dia 15 na sexta anterior — tarde para quem precisa
- * separar o dinheiro ou cobrar um documento que ainda não chegou.
+ * Uma semana à frente, escolhido pelo Júlio em 06/10/2026. Os cinco dias
+ * anteriores eram curtos demais: as contas da Lube se concentram nos dias 10,
+ * 15, 16, 17 e 24, então a conta do dia 15 só aparecia na sexta anterior —
+ * tarde para separar o dinheiro ou cobrar um documento que não chegou.
  *
  * Para trás a janela continua curta: repetir todo dia uma fatura de semanas
  * atrás não faz ninguém pagá-la, só ensina a ignorar a mensagem.
  */
-export const JANELA_FRENTE = 14;
+export const JANELA_FRENTE = 7;
 export const JANELA_ATRAS = 3;
 
 type LinhaView = Record<string, unknown>;
