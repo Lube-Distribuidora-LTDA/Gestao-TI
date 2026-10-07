@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, ReceiptText, Wallet, Building2, LifeBuoy, HardDrive,
+  LayoutDashboard, ReceiptText, Wallet, Building2, LifeBuoy, HardDrive, KanbanSquare,
   Bot, Settings, LogOut, Menu, X, ChevronRight, ExternalLink, FilePlus2,
 } from "lucide-react";
 import { MarcaLube } from "./LogoLube";
@@ -67,7 +67,10 @@ export function Shell({
     },
     {
       titulo: "Infraestrutura",
-      itens: [{ href: "/ativos", rotulo: "Inventário", Icone: HardDrive }],
+      itens: [
+        { href: "/ativos", rotulo: "Inventário", Icone: HardDrive },
+        { href: "/kanban", rotulo: "Kanban TI", Icone: KanbanSquare },
+      ],
     },
     {
       titulo: "Sistema",

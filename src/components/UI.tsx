@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { X, Inbox, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
 
 /* ---------------- Cabeçalho de página ---------------- */
@@ -273,11 +273,20 @@ export function Aviso({
 /** Hook simples de aviso, usado pelas telas. */
 export function useAviso() {
   const [aviso, setAviso] = useState<{ tipo: TipoAviso; mensagem: string } | null>(null);
-  return {
-    aviso,
-    mostrar: (tipo: TipoAviso, mensagem: string) => setAviso({ tipo, mensagem }),
-    limpar: () => setAviso(null),
-  };
+
+  /*
+   * `mostrar` e `limpar` precisam manter a identidade entre renders. Sem o
+   * useCallback, uma tela que coloque `mostrar` nas dependências de um
+   * useCallback/useEffect de carga entra em laço: a função nova a cada render
+   * invalida o efeito, que busca, que renderiza, que cria a função de novo.
+   * Aconteceu no quadro do Kanban — 465 chamadas à API em poucos segundos.
+   */
+  const mostrar = useCallback((tipo: TipoAviso, mensagem: string) => {
+    setAviso({ tipo, mensagem });
+  }, []);
+  const limpar = useCallback(() => setAviso(null), []);
+
+  return { aviso, mostrar, limpar };
 }
 
 /* ---------------- Botão com estado de carregamento ---------------- */

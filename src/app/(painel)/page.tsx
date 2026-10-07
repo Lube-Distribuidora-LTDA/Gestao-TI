@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Wallet, AlertTriangle, CheckCircle2, LifeBuoy, TrendingUp, FileWarning, CalendarClock, CalendarDays,
-  ArrowRight, Clock, Bot,
+  ArrowRight, Clock, Bot, KanbanSquare,
 } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
 import { KpiCard, PageHeader, Badge } from "@/components/UI";
@@ -10,6 +10,16 @@ import { moeda, competenciaAtual, competenciaLabel, deslocarCompetencia, data, d
 import { STATUS_FATURA, STATUS_CHAMADO, PRIORIDADE, alertaVencimento, type StatusFatura, type StatusChamado, type PrioridadeChamado } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
+
+/* A coluna guarda o nome da cor; aqui ela vira o ponto colorido do resumo.
+   Mesmo vocabulário da tela do quadro, para os dois não divergirem. */
+const PONTO_KANBAN: Record<string, string> = {
+  azul: "bg-lube-400",
+  verde: "bg-emerald-400",
+  vermelho: "bg-red-400",
+  ambar: "bg-amber-400",
+  cinza: "bg-lube-300/60",
+};
 
 export default async function Dashboard() {
   const db = supabaseAdmin();
@@ -24,6 +34,8 @@ export default async function Dashboard() {
     { data: pendentes },
     { data: chamadosRecentes },
     { data: ultimaExec },
+    { data: kanbanColunas },
+    { data: kanbanCartoes },
   ] = await Promise.all([
     db.from("vw_custo_mensal").select("*").gte("competencia", inicioJanela).order("competencia"),
     db.from("vw_custo_por_categoria").select("*").eq("competencia", compAtual),
@@ -44,7 +56,17 @@ export default async function Dashboard() {
       .order("aberto_em", { ascending: false })
       .limit(6),
     db.from("robo_execucoes").select("*").order("iniciado_em", { ascending: false }).limit(1).maybeSingle(),
+    db.from("kanban_colunas").select("id, nome, ordem, cor").order("ordem"),
+    db.from("kanban_cartoes").select("coluna_id"),
   ]);
+
+  /* ---------- Kanban: quantos problemas em cada coluna ---------- */
+  const kanban = (kanbanColunas ?? []).map((c) => ({
+    nome: c.nome as string,
+    cor: c.cor as string,
+    quantos: (kanbanCartoes ?? []).filter((k) => k.coluna_id === c.id).length,
+  }));
+  const kanbanTotal = (kanbanCartoes ?? []).length;
 
   /* ---------- séries ---------- */
   const serieEvolucao = (mensal ?? []).map((m) => ({
@@ -190,6 +212,27 @@ export default async function Dashboard() {
           atraso={180}
         />
       </div>
+
+      {/* ---------- Kanban TI: uma linha por coluna, com a contagem ---------- */}
+      {kanbanTotal > 0 && (
+        <Link
+          href="/kanban"
+          className="card card-hover mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 animate-fade-up"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-white">
+            <KanbanSquare size={17} className="text-lube-300" />
+            Kanban TI
+          </span>
+          {kanban.map((c) => (
+            <span key={c.nome} className="flex items-center gap-2 text-sm">
+              <span className={`h-2 w-2 rounded-full ${PONTO_KANBAN[c.cor] ?? PONTO_KANBAN.cinza}`} />
+              <span className="text-lube-200/60">{c.nome}</span>
+              <span className="font-bold text-white">{c.quantos}</span>
+            </span>
+          ))}
+          <ArrowRight size={15} className="ml-auto text-lube-300/60" />
+        </Link>
+      )}
 
       {/* ---------- alertas de vencimento ---------- */}
       {alertas.length > 0 && (
