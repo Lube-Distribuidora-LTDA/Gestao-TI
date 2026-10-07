@@ -10,18 +10,28 @@ O sistema é protegido pela **Sentinela Lube**: só entra quem tem login no
 quem não tem vai para a tela de login do portal. Depois da Sentinela, o login próprio do
 sistema (`/login`) continua valendo como antes.
 
-Ficam abertos para quem **não** tem conta no Painel só a abertura e o acompanhamento de
-chamado (`/abrir-chamado`, `/acompanhar`, `/api/chamados/publico`) e o robô da Vercel
-(`/api/cron/`, que já exige `CRON_SECRET`).
+**Nenhuma rota fica aberta** (decisão do Júlio, 2026-10-07). Abrir e acompanhar chamado
+(`/abrir-chamado`, `/acompanhar` e a API `/api/chamados/publico`) também pedem o login do
+Painel, com permissão para o Gestão TI: quem chega sem sessão vai para o portal
+(`?abrir=gestao-ti`). Links de acompanhamento enviados por e-mail só abrem depois desse login
+(se o portal levar para a tela inicial, basta abrir o link de novo).
+
+O único robô aceito é o **agendador da Vercel** do próprio Gestão TI. Ele não faz login: em
+`/api/cron/*` o `src/middleware.ts` confere o cabeçalho `Authorization: Bearer <CRON_SECRET>`
+(comparação em tempo constante, segredo com pelo menos 16 caracteres) e, se bater, entrega à
+Sentinela a identidade `robo do gestao ti (agendador da vercel)`. Sem o segredo certo não há
+identidade e a Sentinela responde 401 (`sem_login`), mesmo com user-agent `vercel-cron`. A rota
+continua conferindo o `CRON_SECRET` ela mesma. Rodar à mão: pelo botão do painel (ver seção 4);
+`?secret=` na URL não passa mais pela Sentinela.
 
 O guarda mora em `src/lib/sentinela-guarda.ts` (núcleo, sem segredo) e é chamado na primeira
-linha de `src/middleware.ts`, com a constante `FECHADO`. Quem liga o "exige login" é o banco da
-Sentinela (`sentinela.sistemas`, projeto `gestao-ti`: `exige_login` e `rotas_publicas`); se a
-central não responder, o guarda fecha mesmo assim e só passa quem tem sessão do Painel ou do
-próprio sistema. Desde 2026-10-06 o `exige_login` está **ligado** (`true`), com essas quatro
-rotas em `rotas_publicas` (`/abrir-chamado`, `/acompanhar`, `/api/chamados/publico`,
-`/api/cron/`): sem sessão, o resto (inclusive `/login`) vai para o portal e `/api/*` responde
-401. Instalação e emergência: `guarda/LEIA-ME.md` no repositório do Painel Lube.
+linha de `src/middleware.ts`, com a constante `FECHADO` (sem rotas). Quem liga o "exige login" é
+o banco da Sentinela (`sentinela.sistemas`, projeto `gestao-ti`: `exige_login` e
+`rotas_publicas`); se a central não responder, o guarda fecha mesmo assim e só passa quem tem
+sessão do Painel ou do próprio sistema. O `exige_login` está **ligado** (`true`) desde
+2026-10-06 e, desde 2026-10-07, `rotas_publicas` está **vazia**: sem sessão, toda página
+(inclusive `/login`) vai para o portal e `/api/*` responde 401. Instalação e emergência:
+`guarda/LEIA-ME.md` no repositório do Painel Lube.
 
 ---
 
@@ -46,7 +56,8 @@ O robô **nunca processa o mesmo e-mail duas vezes** (controle por `message_id`)
 **não marca nada como lido** — sua caixa continua como estava.
 
 ### Chamados
-- Portal público em `/abrir-chamado` — sem login, qualquer setor acessa pelo link
+- Portal de abertura em `/abrir-chamado` — qualquer setor acessa pelo link, com o login do
+  Painel Lube (ver "Acesso")
 - Protocolo automático (`TI-2026-00001`) e e-mail de confirmação
 - Painel de atendimento com conversa, anotações internas e prioridades
 - O solicitante acompanha por um **link com token**, responde e avalia o atendimento
@@ -158,14 +169,11 @@ Migrando para o plano Pro, dá para separar de novo e aumentar a frequência da
 leitura (4x ao dia é confortável).
 
 As rotas `/api/cron/*` são protegidas pelo `CRON_SECRET` — a Vercel envia esse
-segredo automaticamente. Para rodar à mão:
+segredo automaticamente no cabeçalho `Authorization: Bearer`, e é por ele que a Sentinela
+deixa o agendador entrar (ver "Acesso"). O antigo teste à mão com `?secret=` na URL agora para
+na Sentinela (401) e não deve ser usado.
 
-```bash
-curl "https://SEU-APP.vercel.app/api/cron/ler-emails?secret=SEU_CRON_SECRET"
-```
-
-Tudo também pode ser executado pelo painel, em **Robô de e-mail**, sem depender
-do agendador.
+Para rodar fora do horário, use o painel, em **Robô de e-mail**, sem depender do agendador.
 
 ### Desempenho da varredura
 
