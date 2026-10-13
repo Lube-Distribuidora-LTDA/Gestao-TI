@@ -87,6 +87,9 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
       "fornecedor_nome, competencia, vencimento, valor_efetivo, status, pago_em, pagamento_automatico, nota_fiscal_recebida_em, fatura_recebida_em, exige_nota_fiscal, exige_fatura, precisa_revisao"
     )
     .not("status", "in", "(paga,cancelada)")
+    // fornecedor inativo não entra no resumo: avisar sobre contrato encerrado
+    // é o tipo de alarme que ensina a ignorar a mensagem
+    .eq("fornecedor_ativo", true)
     .is("pago_em", null);
 
   const diasAte = (venc: string): number => {

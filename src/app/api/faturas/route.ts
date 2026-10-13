@@ -12,6 +12,18 @@ export async function GET(req: Request) {
 
   let q = db.from("vw_faturas_detalhe").select("*");
 
+  /*
+   * Fornecedor inativo sai da lista. Marcar como inativo é como se encerra um
+   * contrato aqui, e a competência dele não deveria mais ocupar a tela — a
+   * Data R Informática estava inativa e continuava aparecendo em outubro.
+   *
+   * `inativos=1` traz de volta, para quem precisar consultar o histórico de um
+   * fornecedor encerrado sem ter que reativá-lo só para olhar.
+   */
+  if (url.searchParams.get("inativos") !== "1") {
+    q = q.eq("fornecedor_ativo", true);
+  }
+
   const competencia = url.searchParams.get("competencia");
   const status = url.searchParams.get("status");
   const fornecedor = url.searchParams.get("fornecedor");

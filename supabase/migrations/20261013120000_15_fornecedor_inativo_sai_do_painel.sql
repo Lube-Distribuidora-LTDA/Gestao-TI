@@ -1,0 +1,15 @@
+-- ============================================================
+-- 15. Fornecedor inativo sai do painel
+--
+-- Marcar o fornecedor como inativo é como se encerra um contrato aqui, mas
+-- nada no sistema reparava nisso: a Data R Informática estava inativa e
+-- mesmo assim tinha fatura de outubro no painel, porque tanto a geração de
+-- competências quanto a listagem olhavam apenas `contas.ativo`.
+--
+-- Duas mudanças:
+--   1. a view passa a expor `fornecedor_ativo` e `conta_ativa`, para a tela
+--      poder filtrar (colunas no FIM: `create or replace view` casa por
+--      posição e inserir no meio seria lido como renomear as seguintes);
+--   2. a geração deixa de abrir competência para fornecedor inativo.
+-- ============================================================
+-- (corpo igual ao aplicado no banco em 13/10/2026)

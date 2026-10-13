@@ -44,6 +44,8 @@ export default async function Dashboard() {
     db
       .from("vw_faturas_detalhe")
       .select("*")
+      // fornecedor inativo não gera alerta: o contrato com ele acabou
+      .eq("fornecedor_ativo", true)
       .in("status", ["aguardando_documentos", "documentos_recebidos", "em_aprovacao"])
       .order("vencimento")
       // sem corte: os alertas contam todas as pendentes, e a lista abaixo
