@@ -10,7 +10,7 @@ export default function KanbanPage() {
       <PageHeader
         icone={<KanbanSquare size={21} />}
         titulo="Kanban TI"
-        descricao="Os problemas internos da TI: o que está em análise, o que dá para resolver com calma e o que é crítico."
+        descricao="As demandas da TI: projetos, o que chegou agora, o que está em andamento e o que espera retorno."
       />
       <Quadro />
     </>
