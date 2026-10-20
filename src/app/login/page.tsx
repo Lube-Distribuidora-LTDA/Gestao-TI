@@ -62,8 +62,8 @@ function Formulario() {
           style={{ background: "#ee1c25" }}
         />
 
-        <h1 className="text-xl font-extrabold text-white">Acesso ao painel</h1>
-        <p className="mt-1 text-sm text-lube-200/60">
+        <h1 className="text-xl font-extrabold text-t1">Acesso ao painel</h1>
+        <p className="mt-1 text-sm text-t3">
           Área restrita ao departamento de TI.
         </p>
 
@@ -72,8 +72,8 @@ function Formulario() {
             className="mt-5 rounded-xl border px-4 py-3 text-sm"
             style={{ borderColor: "rgba(201,133,0,.45)", background: "rgba(201,133,0,.12)" }}
           >
-            <div className="font-bold text-amber-100">Primeiro acesso</div>
-            <p className="mt-1 text-amber-200/75">
+            <div className="font-bold text-atencao">Primeiro acesso</div>
+            <p className="mt-1 text-atencao/75">
               Nenhum usuário cadastrado ainda.{" "}
               <Link href="/setup" className="font-bold underline underline-offset-2">
                 Criar o administrador
@@ -114,7 +114,7 @@ function Formulario() {
 
           {erro && (
             <div
-              className="rounded-xl border px-4 py-3 text-sm font-semibold text-red-100"
+              className="rounded-xl border px-4 py-3 text-sm font-semibold text-perigo"
               style={{ borderColor: "rgba(238,28,37,.45)", background: "rgba(238,28,37,.12)" }}
             >
               {erro}
@@ -130,7 +130,7 @@ function Formulario() {
         <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--color-border-soft)" }}>
           <Link
             href="/abrir-chamado"
-            className="flex items-center justify-center gap-2 text-sm font-semibold text-lube-300 transition hover:text-white"
+            className="flex items-center justify-center gap-2 text-sm font-semibold text-t3 transition hover:text-t1"
           >
             <LifeBuoy size={15} />
             Precisa de ajuda da TI? Abrir chamado
@@ -138,7 +138,7 @@ function Formulario() {
         </div>
       </div>
 
-      <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-lube-200/35">
+      <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-t3">
         <ShieldCheck size={13} />
         Conexão protegida · Lube Distribuidora
       </p>
@@ -149,7 +149,7 @@ function Formulario() {
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <Suspense fallback={<Loader2 className="animate-spin text-lube-300" />}>
+      <Suspense fallback={<Loader2 className="animate-spin text-t3" />}>
         <Formulario />
       </Suspense>
     </div>

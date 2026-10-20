@@ -136,7 +136,7 @@ export default function RoboPage() {
         />
         <CardAcao
           Icone={Send}
-          cor="#ee1c25"
+          cor="#ff6b74"
           titulo="Cobrar fornecedores"
           descricao="Envia e-mail formal para quem ainda não mandou nota ou fatura dentro da janela."
           botao="Executar cobrança"
@@ -166,12 +166,12 @@ export default function RoboPage() {
 
       {/* ---------- histórico ---------- */}
       <div className="card animate-fade-up">
-        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
           Últimas execuções
         </h2>
 
         {carregando ? (
-          <div className="flex items-center justify-center gap-3 py-10 text-sm text-lube-200/55">
+          <div className="flex items-center justify-center gap-3 py-10 text-sm text-t3">
             <Loader2 size={18} className="animate-spin" /> Carregando...
           </div>
         ) : execucoes.length === 0 ? (
@@ -200,18 +200,18 @@ export default function RoboPage() {
                     className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left"
                   >
                     {e.sucesso === false ? (
-                      <XCircle size={17} className="shrink-0 text-red-300" />
+                      <XCircle size={17} className="shrink-0 text-perigo" />
                     ) : e.finalizado_em ? (
-                      <CheckCircle2 size={17} className="shrink-0 text-emerald-300" />
+                      <CheckCircle2 size={17} className="shrink-0 text-ok" />
                     ) : (
-                      <Loader2 size={17} className="shrink-0 animate-spin text-amber-300" />
+                      <Loader2 size={17} className="shrink-0 animate-spin text-atencao" />
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-bold text-white">
+                      <div className="text-sm font-bold text-t1">
                         {ROTULO_TIPO[e.tipo] ?? e.tipo}
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-lube-200/50">
+                      <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-t3">
                         <span className="inline-flex items-center gap-1">
                           <Clock size={10.5} />
                           {dataHora(e.iniciado_em)}
@@ -223,25 +223,25 @@ export default function RoboPage() {
                           </span>
                         )}
                         {(e.detalhes?.cortados ?? 0) > 0 && (
-                          <span className="text-amber-300/90">
+                          <span className="text-atencao/90">
                             {e.detalhes?.cortados} sem ler
                           </span>
                         )}
                         {e.documentos_vinculados > 0 && (
-                          <span className="inline-flex items-center gap-1 text-emerald-300/80">
+                          <span className="inline-flex items-center gap-1 text-ok/80">
                             <FileCheck2 size={10.5} />
                             {e.documentos_vinculados} documento(s)
                           </span>
                         )}
                         {e.cobrancas_enviadas > 0 && (
-                          <span className="text-amber-300/80">{e.cobrancas_enviadas} cobrança(s)</span>
+                          <span className="text-atencao/80">{e.cobrancas_enviadas} cobrança(s)</span>
                         )}
                       </div>
-                      {e.erro && <div className="mt-1 text-[11px] text-red-300">{e.erro}</div>}
+                      {e.erro && <div className="mt-1 text-[11px] text-perigo">{e.erro}</div>}
                     </div>
 
                     {itens.length > 0 && (
-                      <Badge classe="border-lube-400/30 bg-lube-500/12 text-lube-100">
+                      <Badge classe="border-lube-400/30 bg-lube-500/12 text-t1">
                         {aberto ? "ocultar" : `${itens.length} itens`}
                       </Badge>
                     )}
@@ -253,15 +253,15 @@ export default function RoboPage() {
                       style={{ borderColor: "var(--color-border-soft)" }}
                     >
                       {itens.map((it, i) => (
-                        <div key={i} className="text-xs text-lube-200/70">
-                          <span className={it.ok === undefined ? "" : it.ok ? "text-emerald-300" : "text-lube-200/50"}>
+                        <div key={i} className="text-xs text-t2">
+                          <span className={it.ok === undefined ? "" : it.ok ? "text-ok" : "text-t3"}>
                             {it.resultado}
                           </span>
                           {it.assunto && (
-                            <span className="ml-1.5 text-lube-200/40">— {it.assunto}</span>
+                            <span className="ml-1.5 text-t3">— {it.assunto}</span>
                           )}
                           {it.fornecedor && (
-                            <span className="ml-1.5 text-lube-200/40">
+                            <span className="ml-1.5 text-t3">
                               — {it.fornecedor} / {it.conta}
                             </span>
                           )}
@@ -306,10 +306,10 @@ function CardAcao({
         className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl"
         style={{ background: `${cor}22`, border: `1px solid ${cor}44` }}
       >
-        <Icone size={20} className="text-white/90" />
+        <Icone size={20} className="text-t1/90" />
       </div>
-      <h3 className="text-sm font-extrabold text-white">{titulo}</h3>
-      <p className="mt-1 flex-1 text-xs leading-relaxed text-lube-200/55">{descricao}</p>
+      <h3 className="text-sm font-extrabold text-t1">{titulo}</h3>
+      <p className="mt-1 flex-1 text-xs leading-relaxed text-t3">{descricao}</p>
       <BotaoAcao
         carregando={carregando}
         onClick={onClick}

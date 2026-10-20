@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  FilePlus2, Plus, Search, Pencil, Trash2, Loader2, Upload, FileText,
+  FilePlus2, Plus, Pencil, Trash2, Loader2, Upload, FileText,
   ExternalLink, CheckCircle2,
 } from "lucide-react";
 import {
   PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge, KpiCard,
 } from "@/components/UI";
+import {
+  FaixaFiltros, FiltroMulti, FiltroDatas, Segmento, BuscaFiltro,
+  intervaloDoPeriodo, PERIODOS_RAPIDOS, type PeriodoRapido,
+} from "@/components/Filtros";
 import { moeda, data, hojeISO, dataHora, tamanhoArquivo } from "@/lib/format";
 import { STATUS_FATURA, TIPO_DOCUMENTO, type StatusFatura, type TipoDocumento } from "@/lib/tipos";
 
@@ -51,6 +55,11 @@ export default function NotasAvulsasPage() {
   const [categorias, setCategorias] = useState<Array<{ id: string; nome: string; cor?: string }>>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
+  // padrão dos sistemas: período pela data da nota, escolha múltipla (vazio = todos)
+  const [periodo, setPeriodo] = useState<PeriodoRapido | "livre">("tudo");
+  const [livre, setLivre] = useState({ de: "", ate: "" });
+  const [fCategoria, setFCategoria] = useState<string[]>([]);
+  const [fStatus, setFStatus] = useState<string[]>([]);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -207,10 +216,37 @@ export default function NotasAvulsasPage() {
     }
   }
 
-  const total = lista.reduce((s, n) => s + Number(n.valor ?? 0), 0);
-  const doMes = lista.filter((n) => n.data_nota?.slice(0, 7) === hojeISO().slice(0, 7));
+  const intervalo = periodo === "livre" ? livre : intervaloDoPeriodo(periodo);
+  const visiveis = lista.filter(
+    (n) =>
+      (!intervalo.de || (n.data_nota ?? "") >= intervalo.de) &&
+      (!intervalo.ate || (n.data_nota ?? "") <= intervalo.ate) &&
+      (!fCategoria.length || fCategoria.includes(n.categoria_id ?? "sem")) &&
+      (!fStatus.length || fStatus.includes(n.status))
+  );
+  const opCategoria = [
+    ...categorias.map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
+    { id: "sem", nome: "Sem categoria" },
+  ];
+  const opStatus = Object.entries(STATUS_FATURA).map(([id, v]) => ({ id, nome: v.label }));
+  const pilulas = [
+    ...fCategoria.map((id) => ({
+      rotulo: "Categoria",
+      texto: opCategoria.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setFCategoria((a) => a.filter((x) => x !== id)),
+    })),
+    ...fStatus.map((id) => ({
+      rotulo: "Situação",
+      texto: opStatus.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setFStatus((a) => a.filter((x) => x !== id)),
+    })),
+  ];
+
+  // os cartões contam o que está filtrado, como o resto da tela
+  const total = visiveis.reduce((s, n) => s + Number(n.valor ?? 0), 0);
+  const doMes = visiveis.filter((n) => n.data_nota?.slice(0, 7) === hojeISO().slice(0, 7));
   const totalMes = doMes.reduce((s, n) => s + Number(n.valor ?? 0), 0);
-  const pendentes = lista.filter((n) => n.status !== "entregue_contabilidade");
+  const pendentes = visiveis.filter((n) => n.status !== "entregue_contabilidade");
 
   return (
     <>
@@ -227,7 +263,7 @@ export default function NotasAvulsasPage() {
       />
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard rotulo="Lançadas" valor={String(lista.length)} icone={<FilePlus2 size={20} />} cor="#3987e5" />
+        <KpiCard rotulo="Lançadas" valor={String(visiveis.length)} icone={<FilePlus2 size={20} />} cor="#3987e5" />
         <KpiCard rotulo="Total" valor={moeda(total)} icone={<FileText size={20} />} cor="#9085e9" atraso={60} />
         <KpiCard rotulo="Neste mês" valor={moeda(totalMes)} icone={<FileText size={20} />} cor="#199e70" atraso={120} />
         <KpiCard
@@ -239,20 +275,31 @@ export default function NotasAvulsasPage() {
         />
       </div>
 
-      <div className="card mb-5 animate-fade-up">
-        <div className="relative max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-          <input
-            className="input pl-9"
-            placeholder="Empresa, serviço ou número da nota..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-        </div>
-      </div>
+      <FaixaFiltros
+        pilulas={pilulas}
+        aoLimpar={() => {
+          setFCategoria([]);
+          setFStatus([]);
+        }}
+      >
+        <Segmento valor={periodo === "livre" ? null : periodo} aoMudar={setPeriodo} opcoes={PERIODOS_RAPIDOS} />
+        <FiltroDatas
+          de={intervalo.de}
+          ate={intervalo.ate}
+          ativo={periodo === "livre"}
+          rotuloVazio="Data da nota"
+          aoAplicar={(de, ate) => {
+            setLivre({ de, ate });
+            setPeriodo("livre");
+          }}
+        />
+        <FiltroMulti rotulo="Categoria" opcoes={opCategoria} selecionados={fCategoria} aoMudar={setFCategoria} />
+        <FiltroMulti rotulo="Situação" opcoes={opStatus} selecionados={fStatus} aoMudar={setFStatus} />
+        <BuscaFiltro valor={busca} aoMudar={setBusca} placeholder="Empresa, serviço ou nº da nota…" />
+      </FaixaFiltros>
 
       {carregando ? (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+        <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
           <Loader2 size={18} className="animate-spin" /> Carregando...
         </div>
       ) : lista.length === 0 ? (
@@ -283,7 +330,14 @@ export default function NotasAvulsasPage() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((n) => {
+              {visiveis.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-sm text-t3">
+                    Nada com estes filtros
+                  </td>
+                </tr>
+              )}
+              {visiveis.map((n) => {
                 const est = STATUS_FATURA[n.status];
                 const cat = categorias.find((c) => c.id === n.categoria_id);
                 return (
@@ -296,17 +350,17 @@ export default function NotasAvulsasPage() {
                           title={cat?.nome ?? "Sem categoria"}
                         />
                         <div className="min-w-0">
-                          <div className="font-bold text-white">{n.empresa}</div>
-                          <div className="truncate text-xs text-lube-200/55">{n.servico}</div>
+                          <div className="font-bold text-t1">{n.empresa}</div>
+                          <div className="truncate text-xs text-t3">{n.servico}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="text-lube-100">{n.numero_nota || "—"}</td>
-                    <td className="whitespace-nowrap text-lube-100">{data(n.data_nota)}</td>
-                    <td className="whitespace-nowrap text-lube-100">
+                    <td className="text-t1">{n.numero_nota || "—"}</td>
+                    <td className="whitespace-nowrap text-t1">{data(n.data_nota)}</td>
+                    <td className="whitespace-nowrap text-t1">
                       {n.vencimento ? data(n.vencimento) : "—"}
                     </td>
-                    <td className="whitespace-nowrap text-right font-bold text-white">
+                    <td className="whitespace-nowrap text-right font-bold text-t1">
                       {moeda(Number(n.valor))}
                     </td>
                     <td>
@@ -318,20 +372,20 @@ export default function NotasAvulsasPage() {
                           <button
                             onClick={() => marcarEntregue(n)}
                             title="Assinado e entregue à contabilidade"
-                            className="rounded-lg p-1.5 text-emerald-300/80 transition hover:bg-emerald-400/15 hover:text-emerald-200"
+                            className="rounded-lg p-1.5 text-ok/80 transition hover:bg-ok/15 hover:text-ok"
                           >
                             <CheckCircle2 size={14} />
                           </button>
                         )}
                         <button
                           onClick={() => abrirEdicao(n)}
-                          className="rounded-lg p-1.5 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-white/10 hover:text-t1"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => excluir(n)}
-                          className="rounded-lg p-1.5 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -488,7 +542,7 @@ export default function NotasAvulsasPage() {
         {/* ---------- anexo: só depois da nota existir ---------- */}
         <div className="mt-5 border-t pt-5" style={{ borderColor: "var(--color-border-soft)" }}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h3 className="text-sm font-extrabold uppercase tracking-wider text-t3">
               Nota anexada {documentos.length > 0 && `(${documentos.length})`}
             </h3>
             <input
@@ -511,14 +565,14 @@ export default function NotasAvulsasPage() {
 
           {!editando ? (
             <p
-              className="rounded-xl border border-dashed px-4 py-5 text-center text-xs text-lube-200/45"
+              className="rounded-xl border border-dashed px-4 py-5 text-center text-xs text-t3"
               style={{ borderColor: "var(--color-border-soft)" }}
             >
               Lance a nota primeiro; o anexo é liberado logo em seguida.
             </p>
           ) : documentos.length === 0 ? (
             <p
-              className="rounded-xl border border-dashed px-4 py-5 text-center text-xs text-lube-200/45"
+              className="rounded-xl border border-dashed px-4 py-5 text-center text-xs text-t3"
               style={{ borderColor: "var(--color-border-soft)" }}
             >
               Nenhum arquivo anexado ainda.
@@ -531,10 +585,10 @@ export default function NotasAvulsasPage() {
                   className="flex items-center gap-3 rounded-xl border px-3.5 py-2.5"
                   style={{ borderColor: "var(--color-border-soft)", background: "rgba(255,255,255,.025)" }}
                 >
-                  <FileText size={16} className="shrink-0 text-lube-300" />
+                  <FileText size={16} className="shrink-0 text-t3" />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-bold text-white">{d.nome_arquivo}</div>
-                    <div className="text-[11px] text-lube-200/50">
+                    <div className="truncate text-sm font-bold text-t1">{d.nome_arquivo}</div>
+                    <div className="text-[11px] text-t3">
                       {dataHora(d.recebido_em)} · {tamanhoArquivo(d.tamanho_bytes)} ·{" "}
                       {TIPO_DOCUMENTO[d.tipo]}
                     </div>
@@ -542,7 +596,7 @@ export default function NotasAvulsasPage() {
                   {d.storage_path && (
                     <button
                       onClick={() => abrirDocumento(d.id)}
-                      className="rounded-lg p-2 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                      className="rounded-lg p-2 text-t3 transition hover:bg-white/10 hover:text-t1"
                       title="Abrir"
                     >
                       <ExternalLink size={15} />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { HardDrive, Plus, Search, Pencil, Trash2, Loader2 } from "lucide-react";
+import { HardDrive, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { FaixaFiltros, FiltroMulti, BuscaFiltro } from "@/components/Filtros";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge, KpiCard } from "@/components/UI";
 import { moeda, data } from "@/lib/format";
 import { STATUS_ATIVO, TIPOS_ATIVO, SETORES, type StatusAtivo } from "@/lib/tipos";
@@ -35,6 +36,10 @@ export default function AtivosPage() {
   const [lista, setLista] = useState<Ativo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
+  // escolha múltipla (vazio = todos), filtrada em memória: o inventário cabe inteiro na tela
+  const [fTipo, setFTipo] = useState<string[]>([]);
+  const [fStatus, setFStatus] = useState<string[]>([]);
+  const [fSetor, setFSetor] = useState<string[]>([]);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -120,9 +125,31 @@ export default function AtivosPage() {
     }
   }
 
-  const emUso = lista.filter((a) => a.status === "em_uso").length;
-  const estoque = lista.filter((a) => a.status === "estoque").length;
-  const patrimonio = lista.reduce((s, a) => s + Number(a.valor_aquisicao ?? 0), 0);
+  const SEM_SETOR = "(sem setor)";
+  const visiveis = lista.filter(
+    (a) =>
+      (!fTipo.length || fTipo.includes(a.tipo)) &&
+      (!fStatus.length || fStatus.includes(a.status)) &&
+      (!fSetor.length || fSetor.includes(a.setor || SEM_SETOR))
+  );
+  const distintos = (xs: string[]) => [...new Set(xs)].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const opTipo = distintos(lista.map((a) => a.tipo)).map((t) => ({ id: t, nome: t }));
+  const opStatus = Object.entries(STATUS_ATIVO).map(([id, v]) => ({ id, nome: v.label }));
+  const opSetor = distintos(lista.map((a) => a.setor || SEM_SETOR)).map((t) => ({ id: t, nome: t }));
+  const pilulas = [
+    ...fTipo.map((id) => ({ rotulo: "Tipo", texto: id, remover: () => setFTipo((a) => a.filter((x) => x !== id)) })),
+    ...fStatus.map((id) => ({
+      rotulo: "Situação",
+      texto: opStatus.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setFStatus((a) => a.filter((x) => x !== id)),
+    })),
+    ...fSetor.map((id) => ({ rotulo: "Setor", texto: id, remover: () => setFSetor((a) => a.filter((x) => x !== id)) })),
+  ];
+
+  // os cartões contam o que está filtrado, como o resto da tela
+  const emUso = visiveis.filter((a) => a.status === "em_uso").length;
+  const estoque = visiveis.filter((a) => a.status === "estoque").length;
+  const patrimonio = visiveis.reduce((s, a) => s + Number(a.valor_aquisicao ?? 0), 0);
 
   return (
     <>
@@ -139,26 +166,28 @@ export default function AtivosPage() {
       />
 
       <div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard rotulo="Total cadastrado" valor={String(lista.length)} icone={<HardDrive size={20} />} cor="#3987e5" />
+        <KpiCard rotulo="Total cadastrado" valor={String(visiveis.length)} icone={<HardDrive size={20} />} cor="#3987e5" />
         <KpiCard rotulo="Em uso" valor={String(emUso)} icone={<HardDrive size={20} />} cor="#199e70" atraso={60} />
         <KpiCard rotulo="Em estoque" valor={String(estoque)} icone={<HardDrive size={20} />} cor="#c98500" atraso={120} />
         <KpiCard rotulo="Patrimônio" valor={moeda(patrimonio)} icone={<HardDrive size={20} />} cor="#9085e9" atraso={180} />
       </div>
 
-      <div className="card mb-5 animate-fade-up">
-        <div className="relative max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-          <input
-            className="input pl-9"
-            placeholder="Patrimônio, modelo, série, usuário ou setor..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-        </div>
-      </div>
+      <FaixaFiltros
+        pilulas={pilulas}
+        aoLimpar={() => {
+          setFTipo([]);
+          setFStatus([]);
+          setFSetor([]);
+        }}
+      >
+        <FiltroMulti rotulo="Tipo" opcoes={opTipo} selecionados={fTipo} aoMudar={setFTipo} />
+        <FiltroMulti rotulo="Situação" opcoes={opStatus} selecionados={fStatus} aoMudar={setFStatus} />
+        <FiltroMulti rotulo="Setor" opcoes={opSetor} selecionados={fSetor} aoMudar={setFSetor} />
+        <BuscaFiltro valor={busca} aoMudar={setBusca} placeholder="Patrimônio, modelo, série, usuário…" />
+      </FaixaFiltros>
 
       {carregando ? (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+        <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
           <Loader2 size={18} className="animate-spin" /> Carregando...
         </div>
       ) : lista.length === 0 ? (
@@ -189,34 +218,41 @@ export default function AtivosPage() {
               </tr>
             </thead>
             <tbody>
-              {lista.map((a) => {
+              {visiveis.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-sm text-t3">
+                    Nada com estes filtros
+                  </td>
+                </tr>
+              )}
+              {visiveis.map((a) => {
                 const st = STATUS_ATIVO[a.status];
                 return (
                   <tr key={a.id}>
-                    <td className="font-bold text-white">{a.patrimonio || "—"}</td>
+                    <td className="font-bold text-t1">{a.patrimonio || "—"}</td>
                     <td>
-                      <div className="text-lube-50">
+                      <div className="text-t1">
                         {[a.marca, a.modelo].filter(Boolean).join(" ") || a.tipo}
                       </div>
-                      <div className="text-xs text-lube-200/50">
+                      <div className="text-xs text-t3">
                         {a.tipo}
                         {a.numero_serie ? ` · SN ${a.numero_serie}` : ""}
                       </div>
                     </td>
                     <td>
-                      <div className="text-lube-50">{a.usuario_atual || "—"}</div>
-                      <div className="text-xs text-lube-200/50">{a.setor || ""}</div>
+                      <div className="text-t1">{a.usuario_atual || "—"}</div>
+                      <div className="text-xs text-t3">{a.setor || ""}</div>
                     </td>
-                    <td className="text-lube-100">{a.localizacao || "—"}</td>
+                    <td className="text-t1">{a.localizacao || "—"}</td>
                     <td>
                       <div className="flex justify-center">
                         <Badge classe={st.classe} ponto={st.ponto}>{st.label}</Badge>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap text-right text-lube-100">
+                    <td className="whitespace-nowrap text-right text-t1">
                       {a.valor_aquisicao ? moeda(Number(a.valor_aquisicao)) : "—"}
                       {a.garantia_ate && (
-                        <div className="text-[11px] text-lube-200/45">
+                        <div className="text-[11px] text-t3">
                           garantia {data(a.garantia_ate)}
                         </div>
                       )}
@@ -225,13 +261,13 @@ export default function AtivosPage() {
                       <div className="flex justify-center gap-1">
                         <button
                           onClick={() => abrirEdicao(a)}
-                          className="rounded-lg p-1.5 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-white/10 hover:text-t1"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => excluir(a)}
-                          className="rounded-lg p-1.5 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                         >
                           <Trash2 size={14} />
                         </button>

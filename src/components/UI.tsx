@@ -25,18 +25,21 @@ export function PageHeader({
       <div className="flex items-start gap-3.5">
         {icone && (
           <div
-            className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-xl text-lube-100"
+            className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-xl text-[var(--ouro)]"
             style={{
-              background: "linear-gradient(135deg, rgba(47,60,196,.9), rgba(22,34,95,.9))",
-              boxShadow: "0 8px 20px -10px rgba(47,60,196,.9)",
+              background: "linear-gradient(135deg, var(--ouro-dim), transparent), var(--s1)",
+              border: "1px solid var(--ouro-linha)",
+              boxShadow: "var(--sombra)",
             }}
           >
             {icone}
           </div>
         )}
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-[27px]">{titulo}</h1>
-          {descricao && <p className="mt-1 max-w-2xl text-sm text-lube-200/65">{descricao}</p>}
+          <h1 className="font-display text-[22px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--t1)] sm:text-[24px]">
+            {titulo}
+          </h1>
+          {descricao && <p className="mt-1 max-w-2xl text-[13px] text-[var(--t3)]">{descricao}</p>}
         </div>
       </div>
       {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
@@ -70,48 +73,73 @@ export function KpiCard({
   // Para custo, subir é ruim e cair é bom — o contrário de uma métrica de receita.
   const corVar =
     variacao == null || variacao === 0
-      ? "text-lube-300/70"
+      ? "text-[var(--t3)]"
       : variacao > 0
-        ? "text-red-300"
-        : "text-emerald-300";
+        ? "text-[var(--perigo)]"
+        : "text-[var(--ok)]";
+
+  // Card zerado fica cinza (padrão dos sistemas): zero não pede atenção nenhuma.
+  const zero = /^(R\$\s*)?0([.,]0+)?$/.test(valor.trim());
+  const corIcone = zero ? "var(--t3)" : destaque ? "var(--ouro)" : cor;
 
   return (
     <div
       className="card card-hover card-glow animate-fade-up"
-      style={{ animationDelay: `${atraso}ms` }}
+      style={{
+        animationDelay: `${atraso}ms`,
+        ...(destaque && !zero
+          ? {
+              borderColor: "var(--ouro-linha)",
+              background: "linear-gradient(135deg, rgba(233,200,119,.1), transparent 55%), var(--s1)",
+            }
+          : {}),
+      }}
     >
       <div
-        className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-[0.16] blur-2xl"
-        style={{ background: cor }}
+        className="pointer-events-none absolute -right-10 -top-10 h-[130px] w-[130px] rounded-full"
+        style={{
+          background: `radial-gradient(closest-side, ${
+            zero ? "transparent" : destaque ? "rgba(233,200,119,.28)" : `${cor}38`
+          }, transparent)`,
+        }}
       />
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-[11px] font-bold uppercase tracking-[0.13em] text-lube-300/75">
-            {rotulo}
-          </div>
-          <div
-            className={`mt-2 font-extrabold tracking-tight text-white ${
-              destaque ? "text-[30px]" : "text-[25px]"
-            }`}
+      {/* ícone na linha do rótulo, como no Fiscal: o valor fica com a largura toda do card */}
+      <div className="relative min-w-0">
+        <div className="flex items-center gap-[9px] text-[11px] font-bold uppercase tracking-[0.13em] text-[var(--t3)]">
+          <span
+            className="flex shrink-0 [&>svg]:h-[17px] [&>svg]:w-[17px]"
+            style={{ color: corIcone }}
           >
-            {valor}
-          </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            {variacao != null && (
-              <span className={`inline-flex items-center gap-1 text-xs font-bold ${corVar}`}>
-                <Seta size={13} />
-                {variacao > 0 ? "+" : ""}
-                {variacao.toFixed(1).replace(".", ",")}%
-              </span>
-            )}
-            {sub && <span className="text-xs text-lube-200/55">{sub}</span>}
-          </div>
+            {icone}
+          </span>
+          <span className="truncate">{rotulo}</span>
         </div>
         <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white/90"
-          style={{ background: `${cor}22`, border: `1px solid ${cor}44` }}
+          className={`num mt-2.5 truncate font-extrabold leading-[1.1] tracking-[-0.02em] ${
+            destaque ? "text-[clamp(21px,1.9vw,28px)]" : "text-[clamp(19px,1.65vw,24px)]"
+          } ${zero ? "text-[var(--t3)]" : "text-[var(--t1)]"}`}
+          style={
+            destaque && !zero
+              ? {
+                  background: "linear-gradient(180deg, var(--ouro-forte), var(--ouro))",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                }
+              : undefined
+          }
         >
-          {icone}
+          {valor}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {variacao != null && (
+            <span className={`num inline-flex items-center gap-1 text-xs font-bold ${corVar}`}>
+              <Seta size={13} />
+              {variacao > 0 ? "+" : ""}
+              {variacao.toFixed(1).replace(".", ",")}%
+            </span>
+          )}
+          {sub && <span className="text-xs text-[var(--t3)]">{sub}</span>}
         </div>
       </div>
     </div>
@@ -156,12 +184,12 @@ export function Vazio({
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       <div
         className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
-        style={{ background: "rgba(70,89,224,.12)", border: "1px solid rgba(126,148,255,.2)" }}
+        style={{ background: "var(--s2)", border: "1px solid var(--linha)" }}
       >
-        <Icone size={28} className="text-lube-300/70" />
+        <Icone size={28} className="text-[var(--t3)]" />
       </div>
-      <h3 className="text-base font-bold text-white">{titulo}</h3>
-      {descricao && <p className="mt-1.5 max-w-sm text-sm text-lube-200/55">{descricao}</p>}
+      <h3 className="font-display text-[14px] font-bold text-[var(--t2)]">{titulo}</h3>
+      {descricao && <p className="mt-1.5 max-w-sm text-[13px] text-[var(--t3)]">{descricao}</p>}
       {acao && <div className="mt-5">{acao}</div>}
     </div>
   );
@@ -203,7 +231,8 @@ export function Modal({
         className={`relative z-10 my-8 w-full ${largura} animate-fade-up rounded-2xl border shadow-2xl`}
         style={{
           borderColor: "var(--color-border-soft)",
-          background: "linear-gradient(165deg, rgba(20,31,84,.99), rgba(8,13,40,.99))",
+          background: "var(--s1)",
+          boxShadow: "0 30px 70px -20px rgba(0,0,0,.8)",
         }}
       >
         <div
@@ -211,12 +240,12 @@ export function Modal({
           style={{ borderColor: "var(--color-border-soft)" }}
         >
           <div>
-            <h2 className="text-lg font-extrabold text-white">{titulo}</h2>
-            {descricao && <p className="mt-1 text-sm text-lube-200/60">{descricao}</p>}
+            <h2 className="titulo-secao">{titulo}</h2>
+            {descricao && <p className="mt-1.5 text-[13px] text-[var(--t3)]">{descricao}</p>}
           </div>
           <button
             onClick={aoFechar}
-            className="rounded-lg p-1.5 text-lube-300 transition hover:bg-white/10 hover:text-white"
+            className="rounded-lg p-1.5 text-[var(--t3)] transition hover:bg-[var(--luz)] hover:text-[var(--ouro-forte)]"
             aria-label="Fechar"
           >
             <X size={19} />
@@ -242,20 +271,23 @@ export function Aviso({
 }) {
   useEffect(() => {
     if (!aoFechar) return;
-    const t = setTimeout(aoFechar, tipo === "erro" ? 9000 : 5000);
+    // ~4 s, como nos outros sistemas; erro fica mais, para dar tempo de ler
+    const t = setTimeout(aoFechar, tipo === "erro" ? 8000 : 4000);
     return () => clearTimeout(t);
   }, [aoFechar, tipo]);
 
-  const estilos = {
-    sucesso: "border-emerald-400/40 bg-emerald-500/12 text-emerald-100",
-    erro: "border-[#ee1c25]/45 bg-[#ee1c25]/12 text-red-100",
-    info: "border-sky-400/40 bg-sky-500/12 text-sky-100",
-  }[tipo];
+  const corBarra = { sucesso: "var(--ok)", erro: "var(--perigo)", info: "var(--ouro)" }[tipo];
 
   return (
     <div
-      className={`fixed bottom-5 right-5 z-[80] max-w-md animate-slide-in rounded-xl border px-4 py-3
-                  text-sm font-semibold shadow-2xl backdrop-blur-md ${estilos}`}
+      className="fixed bottom-[22px] right-[22px] z-[80] min-w-[240px] max-w-[380px] animate-slide-in rounded-xl border px-4 py-3
+                 text-[13px] font-semibold text-[var(--t1)]"
+      style={{
+        background: "var(--s-sobe)",
+        borderColor: "var(--ouro-linha)",
+        borderLeft: `4px solid ${corBarra}`,
+        boxShadow: "0 24px 50px -16px rgba(0,0,0,.7)",
+      }}
       role="status"
     >
       <div className="flex items-start gap-3">

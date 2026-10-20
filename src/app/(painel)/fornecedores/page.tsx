@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Building2, Plus, Search, Pencil, Trash2, Mail, Phone, Loader2, AtSign, MessageCircle,
+  Building2, Plus, Pencil, Trash2, Mail, Phone, Loader2, AtSign, MessageCircle,
 } from "lucide-react";
+import { FaixaFiltros, Segmento, BuscaFiltro } from "@/components/Filtros";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge } from "@/components/UI";
 import { cnpjFmt, moeda, telFmt } from "@/lib/format";
 
@@ -35,6 +36,8 @@ export default function FornecedoresPage() {
   const [lista, setLista] = useState<Fornecedor[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
+  // mesmo padrão de Contas: abre nos ativos, com o segmento para ver os encerrados
+  const [situacao, setSituacao] = useState<"ativos" | "inativos" | "todos">("ativos");
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -174,6 +177,10 @@ export default function FornecedoresPage() {
     }
   }
 
+  const visiveis = lista.filter((f) =>
+    situacao === "todos" ? true : situacao === "ativos" ? f.ativo : !f.ativo
+  );
+
   return (
     <>
       <PageHeader
@@ -188,20 +195,21 @@ export default function FornecedoresPage() {
         }
       />
 
-      <div className="card mb-5 animate-fade-up">
-        <div className="relative max-w-md">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-          <input
-            className="input pl-9"
-            placeholder="Buscar por nome, CNPJ ou e-mail..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-        </div>
-      </div>
+      <FaixaFiltros>
+        <Segmento
+          valor={situacao}
+          aoMudar={setSituacao}
+          opcoes={[
+            { v: "ativos", rotulo: "Ativos", n: lista.filter((f) => f.ativo).length },
+            { v: "inativos", rotulo: "Inativos", n: lista.filter((f) => !f.ativo).length },
+            { v: "todos", rotulo: "Todos", n: lista.length },
+          ]}
+        />
+        <BuscaFiltro valor={busca} aoMudar={setBusca} placeholder="Nome, CNPJ ou e-mail…" />
+      </FaixaFiltros>
 
       {carregando ? (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+        <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
           <Loader2 size={18} className="animate-spin" /> Carregando...
         </div>
       ) : lista.length === 0 ? (
@@ -219,7 +227,10 @@ export default function FornecedoresPage() {
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {lista.map((f, i) => (
+          {visiveis.length === 0 && (
+            <div className="col-span-full py-10 text-center text-sm text-t3">Nada com estes filtros</div>
+          )}
+          {visiveis.map((f, i) => (
             <div
               key={f.id}
               className="card card-hover card-glow animate-fade-up"
@@ -227,14 +238,14 @@ export default function FornecedoresPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-base font-extrabold text-white">{f.nome}</h3>
+                  <h3 className="truncate text-base font-extrabold text-t1">{f.nome}</h3>
                   {f.razao_social && (
-                    <p className="truncate text-xs text-lube-200/50">{f.razao_social}</p>
+                    <p className="truncate text-xs text-t3">{f.razao_social}</p>
                   )}
-                  {f.cnpj && <p className="mt-0.5 text-xs text-lube-200/45">{cnpjFmt(f.cnpj)}</p>}
+                  {f.cnpj && <p className="mt-0.5 text-xs text-t3">{cnpjFmt(f.cnpj)}</p>}
                 </div>
                 {!f.ativo && (
-                  <Badge classe="border-slate-400/30 bg-slate-400/10 text-slate-300">Inativo</Badge>
+                  <Badge classe="border-t3/30 bg-t3/10 text-t3">Inativo</Badge>
                 )}
               </div>
 
@@ -242,27 +253,27 @@ export default function FornecedoresPage() {
                 {/* Como este fornecedor é cobrado vem primeiro: é o que decide
                     se o robô age sozinho ou se a cobrança depende de alguém. */}
                 {f.canal_cobranca === "whatsapp" && (
-                  <div className="flex items-center gap-2 font-semibold text-emerald-300/85">
+                  <div className="flex items-center gap-2 font-semibold text-ok/85">
                     <MessageCircle size={12.5} className="shrink-0" />
                     <span>Cobrança por WhatsApp{f.whatsapp ? ` · ${telFmt(f.whatsapp)}` : ""}</span>
                   </div>
                 )}
                 {f.email_cobranca && (
-                  <div className="flex items-center gap-2 text-lube-200/70">
-                    <Mail size={12.5} className="shrink-0 text-lube-300/70" />
+                  <div className="flex items-center gap-2 text-t2">
+                    <Mail size={12.5} className="shrink-0 text-t3" />
                     <span className="truncate">{f.email_cobranca}</span>
                   </div>
                 )}
                 {f.telefone && (
-                  <div className="flex items-center gap-2 text-lube-200/70">
-                    <Phone size={12.5} className="shrink-0 text-lube-300/70" />
+                  <div className="flex items-center gap-2 text-t2">
+                    <Phone size={12.5} className="shrink-0 text-t3" />
                     {f.telefone}
-                    {f.contato_nome && <span className="text-lube-200/45">· {f.contato_nome}</span>}
+                    {f.contato_nome && <span className="text-t3">· {f.contato_nome}</span>}
                   </div>
                 )}
                 {(f.emails_remetentes ?? []).length > 0 && (
-                  <div className="flex items-start gap-2 text-lube-200/55">
-                    <AtSign size={12.5} className="mt-0.5 shrink-0 text-lube-300/70" />
+                  <div className="flex items-start gap-2 text-t3">
+                    <AtSign size={12.5} className="mt-0.5 shrink-0 text-t3" />
                     <span className="break-all">
                       {(f.emails_remetentes ?? []).join(", ")}
                     </span>
@@ -276,14 +287,14 @@ export default function FornecedoresPage() {
               >
                 <button
                   onClick={() => abrirEdicao(f)}
-                  className="rounded-lg p-2 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                  className="rounded-lg p-2 text-t3 transition hover:bg-white/10 hover:text-t1"
                   title="Editar"
                 >
                   <Pencil size={15} />
                 </button>
                 <button
                   onClick={() => excluir(f)}
-                  className="rounded-lg p-2 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                  className="rounded-lg p-2 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                   title="Excluir"
                 >
                   <Trash2 size={15} />
@@ -355,15 +366,15 @@ export default function FornecedoresPage() {
                   >
                     <Icone
                       size={15}
-                      className={`mt-0.5 shrink-0 ${ativo ? "text-lube-100" : "text-lube-300/60"}`}
+                      className={`mt-0.5 shrink-0 ${ativo ? "text-t1" : "text-t3"}`}
                     />
                     <span className="min-w-0">
                       <span
-                        className={`block text-sm font-bold ${ativo ? "text-white" : "text-lube-200/80"}`}
+                        className={`block text-sm font-bold ${ativo ? "text-t1" : "text-t2"}`}
                       >
                         {rot}
                       </span>
-                      <span className="block text-[11px] text-lube-200/45">{sub}</span>
+                      <span className="block text-[11px] text-t3">{sub}</span>
                     </span>
                   </button>
                 );
@@ -381,7 +392,7 @@ export default function FornecedoresPage() {
                 value={form.whatsapp}
                 onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
               />
-              <p className="mt-1 text-[11px] text-lube-200/45">
+              <p className="mt-1 text-[11px] text-t3">
                 É deste número que sai o botão na tela de faturas. Com DDD; se for de fora do
                 Brasil, comece com o código do país.
               </p>
@@ -400,7 +411,7 @@ export default function FornecedoresPage() {
               value={form.email_cobranca}
               onChange={(e) => setForm({ ...form, email_cobranca: e.target.value })}
             />
-            <p className="mt-1 text-[11px] text-lube-200/45">
+            <p className="mt-1 text-[11px] text-t3">
               {form.canal_cobranca === "email"
                 ? "Para onde o sistema envia a cobrança da nota fiscal."
                 : "Opcional neste caso — a cobrança sai pelo WhatsApp. Guardar o endereço ainda ajuda o robô a reconhecer os documentos quando eles chegarem."}
@@ -415,7 +426,7 @@ export default function FornecedoresPage() {
               value={form.emails_remetentes}
               onChange={(e) => setForm({ ...form, emails_remetentes: e.target.value })}
             />
-            <p className="mt-1 text-[11px] text-lube-200/45">
+            <p className="mt-1 text-[11px] text-t3">
               Separe por vírgula. Use <strong>@dominio.com.br</strong> para aceitar qualquer
               remetente daquele domínio — é assim que o robô liga o e-mail recebido a este fornecedor.
             </p>
@@ -449,7 +460,7 @@ export default function FornecedoresPage() {
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-lube-100">
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-t1">
             <input
               type="checkbox"
               className="h-4 w-4 accent-[#4659e0]"

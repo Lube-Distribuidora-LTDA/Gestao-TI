@@ -54,7 +54,7 @@ export default function SetupPage() {
   if (liberado === null) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="animate-spin text-lube-300" size={30} />
+        <Loader2 className="animate-spin text-t3" size={30} />
       </div>
     );
   }
@@ -63,8 +63,8 @@ export default function SetupPage() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="card w-full max-w-md text-center">
-          <h1 className="text-lg font-extrabold text-white">Sistema já configurado</h1>
-          <p className="mt-2 text-sm text-lube-200/60">
+          <h1 className="text-lg font-extrabold text-t1">Sistema já configurado</h1>
+          <p className="mt-2 text-sm text-t3">
             Já existe pelo menos um usuário cadastrado. Peça a um administrador para criar seu acesso.
           </p>
           <a href="/login" className="btn-primary mt-5 inline-flex">Ir para o login</a>
@@ -83,14 +83,14 @@ export default function SetupPage() {
         <div className="card">
           {pronto ? (
             <div className="py-6 text-center">
-              <CheckCircle2 size={44} className="mx-auto text-emerald-400" />
-              <h1 className="mt-4 text-lg font-extrabold text-white">Administrador criado</h1>
-              <p className="mt-2 text-sm text-lube-200/60">Redirecionando para o login...</p>
+              <CheckCircle2 size={44} className="mx-auto text-ok" />
+              <h1 className="mt-4 text-lg font-extrabold text-t1">Administrador criado</h1>
+              <p className="mt-2 text-sm text-t3">Redirecionando para o login...</p>
             </div>
           ) : (
             <>
-              <h1 className="text-xl font-extrabold text-white">Primeiro acesso</h1>
-              <p className="mt-1 text-sm text-lube-200/60">
+              <h1 className="text-xl font-extrabold text-t1">Primeiro acesso</h1>
+              <p className="mt-1 text-sm text-t3">
                 Crie o usuário administrador do sistema. Esta tela fecha sozinha depois disso.
               </p>
 
@@ -144,7 +144,7 @@ export default function SetupPage() {
 
                 {erro && (
                   <div
-                    className="rounded-xl border px-4 py-3 text-sm font-semibold text-red-100"
+                    className="rounded-xl border px-4 py-3 text-sm font-semibold text-perigo"
                     style={{ borderColor: "rgba(238,28,37,.45)", background: "rgba(238,28,37,.12)" }}
                   >
                     {erro}

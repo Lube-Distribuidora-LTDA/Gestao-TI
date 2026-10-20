@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  LifeBuoy, Search, RefreshCw, Loader2, ExternalLink, Copy, CheckCircle2, Clock, Filter,
+  LifeBuoy, RefreshCw, Loader2, ExternalLink, Copy, CheckCircle2, Clock,
 } from "lucide-react";
 import { PageHeader, Badge, Vazio, Aviso, useAviso } from "@/components/UI";
+import {
+  FaixaFiltros, FiltroMulti, FiltroDatas, Segmento, BuscaFiltro,
+  intervaloDoPeriodo, PERIODOS_RAPIDOS, type PeriodoRapido,
+} from "@/components/Filtros";
 import { dataHora, tempoRelativo } from "@/lib/format";
 import { STATUS_CHAMADO, PRIORIDADE, type StatusChamado, type PrioridadeChamado } from "@/lib/tipos";
 
@@ -28,24 +32,59 @@ export default function ChamadosPage() {
   const { aviso, mostrar, limpar } = useAviso();
   const [lista, setLista] = useState<Chamado[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [filtros, setFiltros] = useState({ status: "ativos", prioridade: "", busca: "" });
+  // padrão dos sistemas: escopo em segmento, escolha múltipla (vazio = todos), período e busca
+  const [f, setF] = useState({
+    escopo: "ativos" as "ativos" | "todos",
+    status: [] as string[],
+    prioridade: [] as string[],
+    periodo: "tudo" as PeriodoRapido | "livre",
+    de: "",
+    ate: "",
+    busca: "",
+  });
+  const muda = (parcial: Partial<typeof f>) => setF((a) => ({ ...a, ...parcial }));
+
+  const qs = useMemo(() => {
+    const q = new URLSearchParams();
+    const status = [...(f.escopo === "ativos" ? ["ativos"] : []), ...f.status];
+    if (status.length) q.set("status", status.join(","));
+    if (f.prioridade.length) q.set("prioridade", f.prioridade.join(","));
+    const { de, ate } = f.periodo === "livre" ? f : intervaloDoPeriodo(f.periodo);
+    if (de) q.set("de", de);
+    if (ate) q.set("ate", ate);
+    if (f.busca) q.set("busca", f.busca);
+    return q.toString();
+  }, [f]);
   const [copiado, setCopiado] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(filtros)) if (v) qs.set(k, v);
-
     const r = await fetch(`/api/chamados?${qs}`);
     const d = await r.json();
     if (r.ok) setLista(d.dados ?? []);
     setCarregando(false);
-  }, [filtros]);
+  }, [qs]);
 
   useEffect(() => {
-    const t = setTimeout(carregar, filtros.busca ? 350 : 0);
+    const t = setTimeout(carregar, f.busca ? 350 : 0);
     return () => clearTimeout(t);
-  }, [carregar, filtros.busca]);
+  }, [carregar, f.busca]);
+
+  const opStatus = Object.entries(STATUS_CHAMADO).map(([id, v]) => ({ id, nome: v.label }));
+  const opPrioridade = Object.entries(PRIORIDADE).map(([id, v]) => ({ id, nome: v.label }));
+  const pilulas = [
+    ...f.status.map((id) => ({
+      rotulo: "Situação",
+      texto: opStatus.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setF((a) => ({ ...a, status: a.status.filter((x) => x !== id) })),
+    })),
+    ...f.prioridade.map((id) => ({
+      rotulo: "Prioridade",
+      texto: opPrioridade.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setF((a) => ({ ...a, prioridade: a.prioridade.filter((x) => x !== id) })),
+    })),
+  ];
+  const intervalo = f.periodo === "livre" ? f : intervaloDoPeriodo(f.periodo);
 
   function copiarLinkPortal() {
     const link = `${window.location.origin}/abrir-chamado`;
@@ -70,7 +109,7 @@ export default function ChamadosPage() {
         acoes={
           <>
             <button onClick={copiarLinkPortal} className="btn-ghost">
-              {copiado ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Copy size={15} />}
+              {copiado ? <CheckCircle2 size={15} className="text-ok" /> : <Copy size={15} />}
               Copiar link do portal
             </button>
             <Link href="/abrir-chamado" target="_blank" className="btn-primary">
@@ -81,77 +120,70 @@ export default function ChamadosPage() {
         }
       />
 
-      <div className="card mb-5 animate-fade-up">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[230px] flex-1">
-            <label className="label">Buscar</label>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-              <input
-                className="input pl-9"
-                placeholder="Protocolo, título ou solicitante..."
-                value={filtros.busca}
-                onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="w-[190px]">
-            <label className="label">Situação</label>
-            <select
-              className="input"
-              value={filtros.status}
-              onChange={(e) => setFiltros({ ...filtros, status: e.target.value })}
-            >
-              <option value="ativos">Em aberto</option>
-              <option value="">Todos</option>
-              {Object.entries(STATUS_CHAMADO).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-[160px]">
-            <label className="label">Prioridade</label>
-            <select
-              className="input"
-              value={filtros.prioridade}
-              onChange={(e) => setFiltros({ ...filtros, prioridade: e.target.value })}
-            >
-              <option value="">Todas</option>
-              {Object.entries(PRIORIDADE).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <button onClick={carregar} className="btn-ghost">
-            <RefreshCw size={15} className={carregando ? "animate-spin" : ""} />
+      <FaixaFiltros
+        pilulas={pilulas}
+        aoLimpar={() => muda({ status: [], prioridade: [] })}
+        direita={
+          <button onClick={carregar} className="btn-ghost !h-[34px] !px-3" title="Atualizar">
+            <RefreshCw size={14} className={carregando ? "animate-spin" : ""} />
           </button>
-        </div>
+        }
+      >
+        <Segmento
+          valor={f.escopo}
+          aoMudar={(v) => muda({ escopo: v })}
+          opcoes={[
+            { v: "ativos", rotulo: "Em aberto" },
+            { v: "todos", rotulo: "Todos" },
+          ]}
+        />
+        <Segmento
+          valor={f.periodo === "livre" ? null : f.periodo}
+          aoMudar={(v) => muda({ periodo: v })}
+          opcoes={PERIODOS_RAPIDOS}
+        />
+        <FiltroDatas
+          de={intervalo.de}
+          ate={intervalo.ate}
+          ativo={f.periodo === "livre"}
+          rotuloVazio="Abertura"
+          aoAplicar={(de, ate) => muda({ periodo: "livre", de, ate })}
+        />
+        <FiltroMulti
+          rotulo="Situação"
+          opcoes={opStatus}
+          selecionados={f.status}
+          // escolher uma situação fechada com "Em aberto" ligado daria lista vazia: passa para "Todos"
+          aoMudar={(v) => muda({ status: v, ...(v.length ? { escopo: "todos" as const } : {}) })}
+        />
+        <FiltroMulti
+          rotulo="Prioridade"
+          opcoes={opPrioridade}
+          selecionados={f.prioridade}
+          aoMudar={(v) => muda({ prioridade: v })}
+        />
+        <BuscaFiltro valor={f.busca} aoMudar={(v) => muda({ busca: v })} placeholder="Protocolo, título ou solicitante…" />
+      </FaixaFiltros>
 
-        <div
-          className="mt-3 flex flex-wrap items-center gap-4 border-t pt-3 text-xs"
-          style={{ borderColor: "var(--color-border-soft)" }}
-        >
-          <Filter size={13} className="text-lube-300/60" />
-          <span className="text-lube-200/60">
-            <strong className="text-white">{lista.length}</strong> listados
+      <div className="mb-4 animate-fade-up">
+        <div className="flex flex-wrap items-center gap-4 px-1 text-xs">
+          <span className="text-t3">
+            <strong className="text-t1">{lista.length}</strong> listados
           </span>
-          <span className="text-lube-200/60">
-            <strong className="text-red-300">{contagem.abertos}</strong> aguardando atendimento
+          <span className="text-t3">
+            <strong className="text-perigo">{contagem.abertos}</strong> aguardando atendimento
           </span>
-          <span className="text-lube-200/60">
-            <strong className="text-sky-300">{contagem.atendimento}</strong> em andamento
+          <span className="text-t3">
+            <strong className="text-info">{contagem.atendimento}</strong> em andamento
           </span>
           {contagem.criticos > 0 && (
-            <span className="font-bold text-red-300">{contagem.criticos} crítico(s)</span>
+            <span className="font-bold text-perigo">{contagem.criticos} crítico(s)</span>
           )}
         </div>
       </div>
 
       {carregando ? (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+        <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
           <Loader2 size={18} className="animate-spin" /> Carregando chamados...
         </div>
       ) : lista.length === 0 ? (
@@ -186,7 +218,7 @@ export default function ChamadosPage() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-extrabold tracking-wide text-lube-300">
+                    <span className="text-[11px] font-extrabold tracking-wide text-t3">
                       {c.protocolo}
                     </span>
                     <Badge classe={st.classe} ponto={st.ponto} pulsar={c.status === "aberto"}>
@@ -199,9 +231,9 @@ export default function ChamadosPage() {
                     )}
                   </div>
 
-                  <div className="mt-1.5 truncate text-[15px] font-bold text-white">{c.titulo}</div>
+                  <div className="mt-1.5 truncate text-[15px] font-bold text-t1">{c.titulo}</div>
 
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-lube-200/55">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-t3">
                     <span>{c.solicitante_nome}</span>
                     {c.solicitante_setor && <span>· {c.solicitante_setor}</span>}
                     <span>· {c.categoria}</span>
@@ -210,11 +242,11 @@ export default function ChamadosPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-lube-200/65">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-t2">
                     <Clock size={12.5} />
                     {tempoRelativo(c.aberto_em)}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-lube-200/40">{dataHora(c.aberto_em)}</div>
+                  <div className="mt-0.5 text-[11px] text-t3">{dataHora(c.aberto_em)}</div>
                 </div>
               </Link>
             );

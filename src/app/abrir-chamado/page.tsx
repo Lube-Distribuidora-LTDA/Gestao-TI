@@ -64,28 +64,28 @@ export default function AbrirChamadoPage() {
               className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
               style={{ background: "rgba(25,158,112,.16)", border: "1px solid rgba(25,158,112,.4)" }}
             >
-              <CheckCircle2 size={32} className="text-emerald-400" />
+              <CheckCircle2 size={32} className="text-ok" />
             </div>
 
-            <h1 className="text-xl font-extrabold text-white">Chamado registrado!</h1>
-            <p className="mt-2 text-sm text-lube-200/65">
+            <h1 className="text-xl font-extrabold text-t1">Chamado registrado!</h1>
+            <p className="mt-2 text-sm text-t2">
               Nossa equipe já foi avisada. Enviamos a confirmação para{" "}
-              <strong className="text-white">{form.solicitante_email}</strong>.
+              <strong className="text-t1">{form.solicitante_email}</strong>.
             </p>
 
             <div
               className="my-6 rounded-2xl px-6 py-5"
               style={{ background: "linear-gradient(135deg,#1e2f8f,#0e1742)" }}
             >
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-lube-300/85">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-t3">
                 Seu protocolo
               </div>
-              <div className="mt-1.5 text-3xl font-extrabold tracking-wider text-white">
+              <div className="mt-1.5 text-3xl font-extrabold tracking-wider text-t1">
                 {sucesso.protocolo}
               </div>
             </div>
 
-            <p className="mb-2 text-xs text-lube-200/55">
+            <p className="mb-2 text-xs text-t3">
               Guarde este link para acompanhar e responder:
             </p>
             <div className="flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function AbrirChamadoPage() {
                 className="btn-ghost shrink-0"
                 title="Copiar link"
               >
-                {copiado ? <CheckCircle2 size={15} className="text-emerald-400" /> : <Copy size={15} />}
+                {copiado ? <CheckCircle2 size={15} className="text-ok" /> : <Copy size={15} />}
               </button>
             </div>
 
@@ -130,7 +130,7 @@ export default function AbrirChamadoPage() {
         <MarcaLube />
         <Link
           href="/acompanhar"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-lube-300 transition hover:text-white"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-t3 transition hover:text-t1"
         >
           <Search size={15} />
           Acompanhar um chamado
@@ -146,13 +146,13 @@ export default function AbrirChamadoPage() {
               boxShadow: "0 8px 22px -10px rgba(47,60,196,.95)",
             }}
           >
-            <LifeBuoy size={23} className="text-lube-100" />
+            <LifeBuoy size={23} className="text-t1" />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+            <h1 className="text-2xl font-extrabold tracking-tight text-t1 sm:text-3xl">
               Suporte de TI
             </h1>
-            <p className="mt-1 text-sm text-lube-200/65">
+            <p className="mt-1 text-sm text-t2">
               Conte o que está acontecendo. A equipe recebe na hora e responde por e-mail.
             </p>
           </div>
@@ -161,7 +161,7 @@ export default function AbrirChamadoPage() {
 
       <form onSubmit={enviar} className="card animate-fade-up" style={{ animationDelay: "80ms" }}>
         {/* quem é você */}
-        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
           Seus dados
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -186,7 +186,7 @@ export default function AbrirChamadoPage() {
               value={form.solicitante_email}
               onChange={(e) => setForm({ ...form, solicitante_email: e.target.value })}
             />
-            <p className="mt-1 text-[11px] text-lube-200/45">É por aqui que responderemos você.</p>
+            <p className="mt-1 text-[11px] text-t3">É por aqui que responderemos você.</p>
           </div>
           <div>
             <label className="label">Setor</label>
@@ -213,7 +213,7 @@ export default function AbrirChamadoPage() {
         </div>
 
         {/* o problema */}
-        <h2 className="mb-4 mt-7 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+        <h2 className="mb-4 mt-7 text-sm font-extrabold uppercase tracking-wider text-t3">
           O problema
         </h2>
         <div className="space-y-4">
@@ -275,7 +275,7 @@ export default function AbrirChamadoPage() {
               value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })}
             />
-            <p className="mt-1 text-[11px] text-lube-200/45">
+            <p className="mt-1 text-[11px] text-t3">
               Quanto mais detalhes, mais rápido conseguimos resolver.
             </p>
           </div>
@@ -307,8 +307,8 @@ export default function AbrirChamadoPage() {
             className="mt-5 flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm"
             style={{ borderColor: "rgba(238,28,37,.45)", background: "rgba(238,28,37,.1)" }}
           >
-            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-red-300" />
-            <span className="text-red-100">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-perigo" />
+            <span className="text-perigo">
               Você marcou como <strong>crítica</strong>. Se algo parou de vez e não pode esperar,
               ligue também para o ramal da TI — o chamado fica registrado do mesmo jeito.
             </span>
@@ -317,7 +317,7 @@ export default function AbrirChamadoPage() {
 
         {erro && (
           <div
-            className="mt-5 rounded-xl border px-4 py-3 text-sm font-semibold text-red-100"
+            className="mt-5 rounded-xl border px-4 py-3 text-sm font-semibold text-perigo"
             style={{ borderColor: "rgba(238,28,37,.45)", background: "rgba(238,28,37,.12)" }}
           >
             {erro}
@@ -328,7 +328,7 @@ export default function AbrirChamadoPage() {
           className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-5"
           style={{ borderColor: "var(--color-border-soft)" }}
         >
-          <p className="text-xs text-lube-200/45">* campos obrigatórios</p>
+          <p className="text-xs text-t3">* campos obrigatórios</p>
           <button type="submit" disabled={enviando} className="btn-primary min-w-[190px]">
             {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
             {enviando ? "Enviando..." : "Abrir chamado"}
@@ -336,7 +336,7 @@ export default function AbrirChamadoPage() {
         </div>
       </form>
 
-      <p className="mt-6 text-center text-xs text-lube-200/35">
+      <p className="mt-6 text-center text-xs text-t3">
         Departamento de Tecnologia da Informação · Lube Distribuidora
       </p>
     </div>

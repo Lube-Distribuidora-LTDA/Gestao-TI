@@ -125,7 +125,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
 
   if (carregando) {
     return (
-      <div className="flex items-center justify-center gap-3 py-20 text-sm text-lube-200/55">
+      <div className="flex items-center justify-center gap-3 py-20 text-sm text-t3">
         <Loader2 size={20} className="animate-spin" /> Carregando chamado...
       </div>
     );
@@ -133,7 +133,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
   if (!chamado) {
     return (
       <div className="card text-center">
-        <p className="text-sm text-lube-200/60">Chamado não encontrado.</p>
+        <p className="text-sm text-t3">Chamado não encontrado.</p>
         <Link href="/chamados" className="btn-primary mt-4 inline-flex">Voltar</Link>
       </div>
     );
@@ -147,7 +147,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
       <div className="mb-5 no-print">
         <Link
           href="/chamados"
-          className="inline-flex items-center gap-2 text-sm font-semibold text-lube-300 transition hover:text-white"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-t3 transition hover:text-t1"
         >
           <ArrowLeft size={15} />
           Voltar para a lista
@@ -181,7 +181,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
         <div className="space-y-5 lg:col-span-2">
           {/* descrição original */}
           <div className="card animate-fade-up">
-            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
               Relato do solicitante
             </h2>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-lube-50">
@@ -193,25 +193,25 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
               style={{ borderColor: "var(--color-border-soft)" }}
             >
               {chamado.equipamento && (
-                <div className="flex items-center gap-2 text-lube-200/70">
-                  <Monitor size={13} className="text-lube-300/70" />
+                <div className="flex items-center gap-2 text-t2">
+                  <Monitor size={13} className="text-t3" />
                   {chamado.equipamento}
                 </div>
               )}
               {chamado.localizacao && (
-                <div className="flex items-center gap-2 text-lube-200/70">
-                  <MapPin size={13} className="text-lube-300/70" />
+                <div className="flex items-center gap-2 text-t2">
+                  <MapPin size={13} className="text-t3" />
                   {chamado.localizacao}
                 </div>
               )}
               {chamado.solicitante_ramal && (
-                <div className="flex items-center gap-2 text-lube-200/70">
-                  <Phone size={13} className="text-lube-300/70" />
+                <div className="flex items-center gap-2 text-t2">
+                  <Phone size={13} className="text-t3" />
                   Ramal {chamado.solicitante_ramal}
                 </div>
               )}
-              <div className="flex items-center gap-2 text-lube-200/70">
-                <Mail size={13} className="text-lube-300/70" />
+              <div className="flex items-center gap-2 text-t2">
+                <Mail size={13} className="text-t3" />
                 {chamado.solicitante_email}
               </div>
             </div>
@@ -219,7 +219,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
 
           {/* conversa */}
           <div className="card animate-fade-up" style={{ animationDelay: "80ms" }}>
-            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
               Conversa ({mensagens.length})
             </h2>
 
@@ -239,11 +239,11 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
                       }}
                     >
                       {m.interna ? (
-                        <Lock size={15} className="text-amber-300" />
+                        <Lock size={15} className="text-atencao" />
                       ) : daTI ? (
-                        <Headset size={16} className="text-lube-100" />
+                        <Headset size={16} className="text-t1" />
                       ) : (
-                        <User size={16} className="text-lube-200/70" />
+                        <User size={16} className="text-t2" />
                       )}
                     </div>
 
@@ -254,19 +254,19 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
                           borderColor: m.interna
                             ? "rgba(201,133,0,.4)"
                             : daTI
-                              ? "rgba(47,60,196,.45)"
+                              ? "rgba(42,65,200,.45)"
                               : "var(--color-border-soft)",
                           background: m.interna
                             ? "rgba(201,133,0,.09)"
                             : daTI
-                              ? "rgba(47,60,196,.16)"
+                              ? "rgba(42,65,200,.16)"
                               : "rgba(255,255,255,.04)",
                         }}
                       >
-                        <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-lube-300/85">
+                        <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-t3">
                           {m.autor_nome || (daTI ? "Equipe de TI" : chamado.solicitante_nome)}
                           {m.interna && (
-                            <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] text-amber-200">
+                            <span className="rounded bg-atencao/20 px-1.5 py-0.5 text-[9px] text-atencao">
                               INTERNA
                             </span>
                           )}
@@ -275,7 +275,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
                           {m.mensagem}
                         </p>
                       </div>
-                      <div className={`mt-1 px-1 text-[11px] text-lube-200/40 ${daTI ? "text-right" : ""}`}>
+                      <div className={`mt-1 px-1 text-[11px] text-t3 ${daTI ? "text-right" : ""}`}>
                         {dataHora(m.criado_em)}
                       </div>
                     </div>
@@ -301,14 +301,14 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
               />
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-lube-100">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-t1">
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[#c98500]"
                     checked={interna}
                     onChange={(e) => setInterna(e.target.checked)}
                   />
-                  <Lock size={13} className="text-amber-300" />
+                  <Lock size={13} className="text-atencao" />
                   Anotação interna
                 </label>
 
@@ -329,7 +329,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
         {/* ---------- coluna lateral ---------- */}
         <div className="space-y-5">
           <div className="card animate-fade-up" style={{ animationDelay: "120ms" }}>
-            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
               Situação
             </h2>
 
@@ -404,7 +404,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
 
           {/* resolução */}
           <div className="card animate-fade-up" style={{ animationDelay: "160ms" }}>
-            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
               Resolução
             </h2>
 
@@ -431,20 +431,20 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
             </BotaoAcao>
 
             {chamado.resolvido_em && (
-              <p className="mt-3 text-center text-xs text-emerald-300">
+              <p className="mt-3 text-center text-xs text-ok">
                 Resolvido em {data(chamado.resolvido_em)}
               </p>
             )}
 
             {chamado.avaliacao && (
               <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--color-border-soft)" }}>
-                <div className="mb-1.5 text-xs font-bold text-lube-300/85">Avaliação do solicitante</div>
+                <div className="mb-1.5 text-xs font-bold text-t3">Avaliação do solicitante</div>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <Star
                       key={n}
                       size={17}
-                      className={n <= chamado.avaliacao! ? "fill-amber-400 text-amber-400" : "text-lube-300/25"}
+                      className={n <= chamado.avaliacao! ? "fill-atencao text-atencao" : "text-t3"}
                     />
                   ))}
                 </div>
@@ -454,7 +454,7 @@ export default function DetalheChamadoPage({ params }: { params: Promise<{ id: s
 
           {/* linha do tempo */}
           <div className="card animate-fade-up" style={{ animationDelay: "200ms" }}>
-            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+            <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
               Linha do tempo
             </h2>
             <div className="space-y-2.5 text-xs">
@@ -487,8 +487,8 @@ function Marco({ rotulo, valor, cor }: { rotulo: string; valor: string; cor: str
         className="h-2.5 w-2.5 shrink-0 rounded-full"
         style={{ background: vazio ? "rgba(126,148,255,.2)" : cor, outline: "2px solid #0e1742" }}
       />
-      <span className="text-lube-200/60">{rotulo}</span>
-      <span className={`ml-auto font-semibold ${vazio ? "text-lube-200/30" : "text-white"}`}>
+      <span className="text-t3">{rotulo}</span>
+      <span className={`ml-auto font-semibold ${vazio ? "text-t3" : "text-t1"}`}>
         {valor}
       </span>
     </div>

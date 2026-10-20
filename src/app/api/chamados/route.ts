@@ -11,14 +11,25 @@ export async function GET(req: Request) {
 
   let q = db.from("chamados").select("*");
 
-  const status = url.searchParams.get("status");
-  const prioridade = url.searchParams.get("prioridade");
+  // situação e prioridade aceitam vários valores separados por vírgula (vazio = todos)
+  const lista = (k: string) =>
+    (url.searchParams.get(k) ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const status = lista("status");
+  const prioridade = lista("prioridade");
   const busca = url.searchParams.get("busca");
+  const de = url.searchParams.get("de");
+  const ate = url.searchParams.get("ate");
 
-  if (status === "ativos") q = q.not("status", "in", "(fechado,cancelado)");
-  else if (status) q = q.eq("status", status);
+  // "ativos" = tudo que não foi fechado nem cancelado
+  if (status.includes("ativos")) q = q.not("status", "in", "(fechado,cancelado)");
+  const escolhidos = status.filter((x) => x !== "ativos");
+  if (escolhidos.length) q = q.in("status", escolhidos);
 
-  if (prioridade) q = q.eq("prioridade", prioridade);
+  if (prioridade.length) q = q.in("prioridade", prioridade);
+
+  // período pela data de abertura; o "até" vale o dia inteiro
+  if (de) q = q.gte("aberto_em", `${de}T00:00:00-03:00`);
+  if (ate) q = q.lte("aberto_em", `${ate}T23:59:59-03:00`);
 
   if (busca) {
     const termo = busca.replace(/[%,()]/g, "");

@@ -94,7 +94,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
   if (carregando) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="animate-spin text-lube-300" size={32} />
+        <Loader2 className="animate-spin text-t3" size={32} />
       </div>
     );
   }
@@ -103,8 +103,8 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="card w-full max-w-md text-center">
-          <h1 className="text-lg font-extrabold text-white">Chamado não encontrado</h1>
-          <p className="mt-2 text-sm text-lube-200/60">{erro}</p>
+          <h1 className="text-lg font-extrabold text-t1">Chamado não encontrado</h1>
+          <p className="mt-2 text-sm text-t3">{erro}</p>
           <Link href="/abrir-chamado" className="btn-primary mt-5 inline-flex">
             Abrir um chamado
           </Link>
@@ -124,7 +124,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
         <div className="flex items-center gap-2 no-print">
           <Link
             href="/abrir-chamado"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-lube-300 transition hover:text-white"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-t3 transition hover:text-t1"
           >
             <ArrowLeft size={15} />
             Novo chamado
@@ -140,7 +140,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-lube-700/60 px-2.5 py-1 text-xs font-extrabold tracking-wide text-lube-100">
+              <span className="rounded-lg bg-lube-700/60 px-2.5 py-1 text-xs font-extrabold tracking-wide text-t1">
                 {chamado.protocolo}
               </span>
               <Badge classe={st.classe} ponto={st.ponto} pulsar={chamado.status === "aberto"}>
@@ -149,9 +149,9 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
               <Badge classe={pr.classe} ponto={pr.ponto}>{pr.label}</Badge>
             </div>
 
-            <h1 className="mt-3 text-xl font-extrabold text-white sm:text-2xl">{chamado.titulo}</h1>
+            <h1 className="mt-3 text-xl font-extrabold text-t1 sm:text-2xl">{chamado.titulo}</h1>
 
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-lube-200/55">
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-t3">
               <span className="inline-flex items-center gap-1.5">
                 <Clock size={12.5} />
                 Aberto em {dataHora(chamado.aberto_em)}
@@ -167,13 +167,13 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
             className="mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3"
             style={{ borderColor: "rgba(25,158,112,.4)", background: "rgba(25,158,112,.1)" }}
           >
-            <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-400" />
+            <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-ok" />
             <div>
-              <div className="text-sm font-bold text-emerald-100">
+              <div className="text-sm font-bold text-ok">
                 Resolvido em {data(chamado.resolvido_em)}
               </div>
               {chamado.solucao && (
-                <p className="mt-1 text-sm text-emerald-200/75">{chamado.solucao}</p>
+                <p className="mt-1 text-sm text-ok/75">{chamado.solucao}</p>
               )}
             </div>
           </div>
@@ -182,7 +182,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
 
       {/* ---------- conversa ---------- */}
       <div className="card mb-5 animate-fade-up" style={{ animationDelay: "80ms" }}>
-        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+        <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
           Conversa
         </h2>
 
@@ -203,9 +203,9 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
                   }}
                 >
                   {daTI ? (
-                    <Headset size={16} className="text-lube-100" />
+                    <Headset size={16} className="text-t1" />
                   ) : (
-                    <User size={16} className="text-lube-200/70" />
+                    <User size={16} className="text-t2" />
                   )}
                 </div>
 
@@ -213,18 +213,18 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
                   <div
                     className="rounded-2xl border px-4 py-2.5 text-left"
                     style={{
-                      borderColor: daTI ? "rgba(47,60,196,.45)" : "var(--color-border-soft)",
-                      background: daTI ? "rgba(47,60,196,.16)" : "rgba(255,255,255,.04)",
+                      borderColor: daTI ? "rgba(42,65,200,.45)" : "var(--color-border-soft)",
+                      background: daTI ? "rgba(42,65,200,.16)" : "rgba(255,255,255,.04)",
                     }}
                   >
-                    <div className="mb-1 text-[11px] font-bold text-lube-300/85">
+                    <div className="mb-1 text-[11px] font-bold text-t3">
                       {daTI ? m.autor_nome || "Equipe de TI" : m.autor_nome || "Você"}
                     </div>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-lube-50">
                       {m.mensagem}
                     </p>
                   </div>
-                  <div className="mt-1 px-1 text-[11px] text-lube-200/40">
+                  <div className="mt-1 px-1 text-[11px] text-t3">
                     {dataHora(m.criado_em)}
                   </div>
                 </div>
@@ -258,7 +258,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
       {/* ---------- avaliação ---------- */}
       {encerrado && (
         <div className="card animate-fade-up no-print" style={{ animationDelay: "140ms" }}>
-          <h2 className="text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-t3">
             Como foi o atendimento?
           </h2>
 
@@ -268,10 +268,10 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
                 <Star
                   key={n}
                   size={22}
-                  className={n <= chamado.avaliacao! ? "fill-amber-400 text-amber-400" : "text-lube-300/30"}
+                  className={n <= chamado.avaliacao! ? "fill-atencao text-atencao" : "text-t3"}
                 />
               ))}
-              <span className="ml-2 text-sm text-lube-200/60">Obrigado pela avaliação!</span>
+              <span className="ml-2 text-sm text-t3">Obrigado pela avaliação!</span>
             </div>
           ) : (
             <div className="mt-3 flex items-center gap-2">
@@ -283,7 +283,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
                   className="transition hover:scale-110 disabled:opacity-50"
                   title={`${n} estrela${n > 1 ? "s" : ""}`}
                 >
-                  <Star size={26} className="text-lube-300/40 transition hover:text-amber-400" />
+                  <Star size={26} className="text-t3 transition hover:text-atencao" />
                 </button>
               ))}
             </div>
@@ -291,7 +291,7 @@ export default function AcompanharPage({ params }: { params: Promise<{ token: st
         </div>
       )}
 
-      <p className="mt-6 text-center text-xs text-lube-200/35">
+      <p className="mt-6 text-center text-xs text-t3">
         Departamento de Tecnologia da Informação · Lube Distribuidora
       </p>
     </div>

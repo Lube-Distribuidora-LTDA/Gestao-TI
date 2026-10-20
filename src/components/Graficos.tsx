@@ -7,7 +7,7 @@ import {
 import { moeda, moedaCurta } from "@/lib/format";
 
 /**
- * Paleta categórica validada para o fundo escuro do painel (#0e1742):
+ * Paleta categórica validada para o fundo escuro do painel:
  * banda de luminosidade, piso de croma, separação para daltonismo (ΔE 8,4),
  * piso de visão normal (19,3) e contraste ≥ 3:1 — todos aprovados.
  * A ordem é fixa: uma categoria nunca troca de cor quando outra some do filtro.
@@ -17,9 +17,37 @@ export const PALETA = [
   "#d55181", "#008300", "#9085e9", "#e66767",
 ] as const;
 
-const EIXO = { fill: "#8fa0d8", fontSize: 11, fontWeight: 600 };
-const GRADE = "rgba(126,148,255,.10)";
-const SUPERFICIE = "#0e1742";
+// Cores do padrão dos sistemas (globals.css): eixo em t3, grade na linha, contorno no fundo do card.
+// Ficam em hex porque o SVG do recharts recebe o valor, não a classe.
+const EIXO = { fill: "#7c92be", fontSize: 11, fontWeight: 600, fontFamily: "var(--f-txt)" };
+const GRADE = "rgba(42,66,117,.55)";
+const SUPERFICIE = "#0d1830";
+
+/*
+ * Rótulo de valor desenhado aqui, e não pelo LabelList padrão: o do recharts limita o texto
+ * à largura da barra e quebrava "R$ 9,6k" em duas linhas nas barras curtas.
+ */
+function rotulo(lado: "direita" | "topo", formatar: (v: number) => string = moedaCurta) {
+  return function Rotulo(props: {
+    x?: number | string; y?: number | string; width?: number | string; height?: number | string;
+    value?: number | string;
+  }) {
+    const x = Number(props.x ?? 0), y = Number(props.y ?? 0);
+    const w = Number(props.width ?? 0), h = Number(props.height ?? 0);
+    const v = Number(props.value ?? 0);
+    return lado === "direita" ? (
+      <text x={x + w + 10} y={y + h / 2} dy="0.35em" fill="#aec0e2" fontSize={11} fontWeight={700}
+        fontFamily="var(--f-num)">
+        {formatar(v)}
+      </text>
+    ) : (
+      <text x={x + w / 2} y={y - 8} textAnchor="middle" fill="#aec0e2" fontSize={12} fontWeight={800}
+        fontFamily="var(--f-num)">
+        {formatar(v)}
+      </text>
+    );
+  };
+}
 
 /* ---------------- Tooltip compartilhado ---------------- */
 function CaixaTooltip({
@@ -33,12 +61,11 @@ function CaixaTooltip({
     <div
       className="rounded-xl border px-3.5 py-2.5 shadow-2xl"
       style={{
-        borderColor: "rgba(126,148,255,.28)",
-        background: "rgba(8,13,40,.97)",
-        backdropFilter: "blur(10px)",
+        borderColor: "var(--ouro-linha)",
+        background: "var(--s-sobe)",
       }}
     >
-      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-lube-300/80">
+      <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-t3">
         {titulo}
       </div>
       {linhas.map((l, i) => (
@@ -49,8 +76,8 @@ function CaixaTooltip({
               style={{ background: l.cor, outline: `2px solid ${SUPERFICIE}` }}
             />
           )}
-          <span className="text-xs text-lube-200/75">{l.rotulo}</span>
-          <span className="ml-auto text-sm font-bold text-white">{l.valor}</span>
+          <span className="text-xs text-t2">{l.rotulo}</span>
+          <span className="num ml-auto text-sm font-bold text-t1">{l.valor}</span>
         </div>
       ))}
     </div>
@@ -88,7 +115,7 @@ export function GraficoEvolucao({
           tickFormatter={(v) => moedaCurta(v)}
         />
         <Tooltip
-          cursor={{ stroke: "#6a81f7", strokeWidth: 1, strokeDasharray: "4 4" }}
+          cursor={{ stroke: "#e9c877", strokeWidth: 1, strokeDasharray: "4 4" }}
           content={({ active, payload, label }) =>
             active && payload?.length ? (
               <CaixaTooltip
@@ -151,7 +178,7 @@ export function GraficoCategorias({
           width={148}
         />
         <Tooltip
-          cursor={{ fill: "rgba(70,89,224,.10)" }}
+          cursor={{ fill: "rgba(255,255,255,.05)" }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <CaixaTooltip
@@ -172,17 +199,7 @@ export function GraficoCategorias({
           {dados.map((d, i) => (
             <Cell key={i} fill={d.cor} stroke={SUPERFICIE} strokeWidth={2} />
           ))}
-          <LabelList
-            dataKey="total"
-            position="right"
-            offset={10}
-            formatter={(v: number) => moedaCurta(v)}
-            /* o contorno vem herdado da barra e engoliria o texto */
-            stroke="none"
-            fill="#c9d4ff"
-            fontSize={11}
-            fontWeight={700}
-          />
+          <LabelList dataKey="total" content={rotulo("direita")} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -220,7 +237,7 @@ export function GraficoFornecedores({
           width={148}
         />
         <Tooltip
-          cursor={{ fill: "rgba(70,89,224,.10)" }}
+          cursor={{ fill: "rgba(255,255,255,.05)" }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <CaixaTooltip
@@ -233,17 +250,7 @@ export function GraficoFornecedores({
           }
         />
         <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={24} fill="#9085e9" stroke={SUPERFICIE} strokeWidth={2}>
-          <LabelList
-            dataKey="total"
-            position="right"
-            offset={10}
-            formatter={(v: number) => moedaCurta(v)}
-            /* o contorno vem herdado da barra e engoliria o texto */
-            stroke="none"
-            fill="#c9d4ff"
-            fontSize={11}
-            fontWeight={700}
-          />
+          <LabelList dataKey="total" content={rotulo("direita")} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -267,7 +274,7 @@ export function GraficoChamados({
         <XAxis dataKey="status" tick={{ ...EIXO, fontSize: 10.5 }} axisLine={false} tickLine={false} dy={6} />
         <YAxis tick={EIXO} axisLine={false} tickLine={false} width={34} allowDecimals={false} />
         <Tooltip
-          cursor={{ fill: "rgba(70,89,224,.10)" }}
+          cursor={{ fill: "rgba(255,255,255,.05)" }}
           content={({ active, payload }) =>
             active && payload?.length ? (
               <CaixaTooltip
@@ -287,15 +294,7 @@ export function GraficoChamados({
           {dados.map((d, i) => (
             <Cell key={i} fill={d.cor} stroke={SUPERFICIE} strokeWidth={2} />
           ))}
-          <LabelList
-            dataKey="qtd"
-            position="top"
-            offset={8}
-            stroke="none"
-            fill="#c9d4ff"
-            fontSize={12}
-            fontWeight={800}
-          />
+          <LabelList dataKey="qtd" content={rotulo("topo", String)} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -304,7 +303,7 @@ export function GraficoChamados({
 
 function SemDados() {
   return (
-    <div className="flex h-[220px] items-center justify-center text-sm text-lube-200/45">
+    <div className="flex h-[220px] items-center justify-center text-sm text-t3">
       Ainda não há dados suficientes para este gráfico.
     </div>
   );

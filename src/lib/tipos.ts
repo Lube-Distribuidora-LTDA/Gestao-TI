@@ -29,13 +29,13 @@ type Estilo = { label: string; classe: string; ponto: string };
 export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
   aguardando_documentos: {
     label: "Aguardando documentos",
-    classe: "border-amber-400/35 bg-amber-400/12 text-amber-200",
-    ponto: "bg-amber-400",
+    classe: "border-atencao/35 bg-atencao/12 text-atencao",
+    ponto: "bg-atencao",
   },
   documentos_recebidos: {
     label: "Documentos recebidos",
-    classe: "border-sky-400/35 bg-sky-400/12 text-sky-200",
-    ponto: "bg-sky-400",
+    classe: "border-info/35 bg-info/12 text-info",
+    ponto: "bg-info",
   },
   em_aprovacao: {
     label: "Em aprovação",
@@ -44,77 +44,77 @@ export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
   },
   entregue_contabilidade: {
     label: "Assinado e entregue",
-    classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
-    ponto: "bg-emerald-400",
+    classe: "border-ok/35 bg-ok/12 text-ok",
+    ponto: "bg-ok",
   },
   paga: {
     label: "Assinado e entregue",
-    classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
-    ponto: "bg-emerald-400",
+    classe: "border-ok/35 bg-ok/12 text-ok",
+    ponto: "bg-ok",
   },
   cancelada: {
     label: "Cancelada",
-    classe: "border-slate-400/30 bg-slate-400/10 text-slate-300",
-    ponto: "bg-slate-400",
+    classe: "border-t3/30 bg-t3/10 text-t3",
+    ponto: "bg-t3",
   },
 };
 
 export const STATUS_CHAMADO: Record<StatusChamado, Estilo> = {
   aberto: {
     label: "Aberto",
-    classe: "border-brand-red/45 bg-[#ee1c25]/12 text-red-200",
-    ponto: "bg-[#ee1c25]",
+    classe: "border-brand-red/45 bg-perigo/12 text-perigo",
+    ponto: "bg-perigo",
   },
   em_atendimento: {
     label: "Em atendimento",
-    classe: "border-sky-400/35 bg-sky-400/12 text-sky-200",
-    ponto: "bg-sky-400",
+    classe: "border-info/35 bg-info/12 text-info",
+    ponto: "bg-info",
   },
   aguardando_usuario: {
     label: "Aguardando usuário",
-    classe: "border-amber-400/35 bg-amber-400/12 text-amber-200",
-    ponto: "bg-amber-400",
+    classe: "border-atencao/35 bg-atencao/12 text-atencao",
+    ponto: "bg-atencao",
   },
   resolvido: {
     label: "Resolvido",
-    classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
-    ponto: "bg-emerald-400",
+    classe: "border-ok/35 bg-ok/12 text-ok",
+    ponto: "bg-ok",
   },
   fechado: {
     label: "Fechado",
-    classe: "border-slate-400/30 bg-slate-400/10 text-slate-300",
-    ponto: "bg-slate-400",
+    classe: "border-t3/30 bg-t3/10 text-t3",
+    ponto: "bg-t3",
   },
   cancelado: {
     label: "Cancelado",
-    classe: "border-slate-400/30 bg-slate-400/10 text-slate-400",
-    ponto: "bg-slate-500",
+    classe: "border-t3/30 bg-t3/10 text-t3",
+    ponto: "bg-t3",
   },
 };
 
 export const PRIORIDADE: Record<PrioridadeChamado, Estilo & { peso: number }> = {
   baixa: {
     label: "Baixa",
-    classe: "border-slate-400/30 bg-slate-400/10 text-slate-300",
-    ponto: "bg-slate-400",
+    classe: "border-t3/30 bg-t3/10 text-t3",
+    ponto: "bg-t3",
     peso: 1,
   },
   media: {
     label: "Média",
-    classe: "border-sky-400/35 bg-sky-400/12 text-sky-200",
-    ponto: "bg-sky-400",
+    classe: "border-info/35 bg-info/12 text-info",
+    ponto: "bg-info",
     peso: 2,
   },
   alta: {
     label: "Alta",
-    classe: "border-amber-400/40 bg-amber-400/12 text-amber-200",
-    ponto: "bg-amber-400",
+    classe: "border-atencao/40 bg-atencao/12 text-atencao",
+    ponto: "bg-atencao",
     peso: 3,
   },
   critica: {
     label: "Crítica",
-    classe: "border-[#ee1c25]/50 bg-[#ee1c25]/15 text-red-200",
-    ponto: "bg-[#ee1c25]",
+    classe: "border-perigo/50 bg-perigo/15 text-perigo",
+    ponto: "bg-perigo",
     peso: 4,
   },
 };
@@ -141,23 +141,23 @@ export const PERIODICIDADE: Record<Periodicidade, string> = {
 export const STATUS_ATIVO: Record<StatusAtivo, Estilo> = {
   em_uso: {
     label: "Em uso",
-    classe: "border-emerald-400/35 bg-emerald-400/12 text-emerald-200",
-    ponto: "bg-emerald-400",
+    classe: "border-ok/35 bg-ok/12 text-ok",
+    ponto: "bg-ok",
   },
   estoque: {
     label: "Em estoque",
-    classe: "border-sky-400/35 bg-sky-400/12 text-sky-200",
-    ponto: "bg-sky-400",
+    classe: "border-info/35 bg-info/12 text-info",
+    ponto: "bg-info",
   },
   manutencao: {
     label: "Manutenção",
-    classe: "border-amber-400/35 bg-amber-400/12 text-amber-200",
-    ponto: "bg-amber-400",
+    classe: "border-atencao/35 bg-atencao/12 text-atencao",
+    ponto: "bg-atencao",
   },
   descartado: {
     label: "Descartado",
-    classe: "border-slate-400/30 bg-slate-400/10 text-slate-400",
-    ponto: "bg-slate-500",
+    classe: "border-t3/30 bg-t3/10 text-t3",
+    ponto: "bg-t3",
   },
 };
 
@@ -299,7 +299,7 @@ export function alertaVencimento(
       descricao: debitado
         ? "Débito automático já efetuado nesta data."
         : `Débito automático programado para daqui a ${dias} dia${dias === 1 ? "" : "s"}.`,
-      classe: "border-sky-400/40 bg-sky-400/10 text-sky-200",
+      classe: "border-info/40 bg-info/10 text-info",
       cor: "#3987e5",
       peso: 0,
       pulsar: false,
@@ -321,8 +321,8 @@ export function alertaVencimento(
       nivel: "vencida",
       rotulo: `${d}d em atraso`,
       descricao: `Venceu há ${d} dia${d === 1 ? "" : "s"}.`,
-      classe: "border-[#ee1c25]/55 bg-[#ee1c25]/15 text-red-200",
-      cor: "#ee1c25", peso: 100 + d, pulsar: true,
+      classe: "border-perigo/55 bg-perigo/15 text-perigo",
+      cor: "#ff6b74", peso: 100 + d, pulsar: true,
     };
   }
 
@@ -331,8 +331,8 @@ export function alertaVencimento(
       nivel: "hoje",
       rotulo: "vence hoje",
       descricao: "Vence hoje.",
-      classe: "border-[#ee1c25]/55 bg-[#ee1c25]/15 text-red-200",
-      cor: "#ee1c25", peso: 99, pulsar: true,
+      classe: "border-perigo/55 bg-perigo/15 text-perigo",
+      cor: "#ff6b74", peso: 99, pulsar: true,
     };
   }
 
@@ -357,7 +357,7 @@ export function alertaVencimento(
       nivel: "atencao",
       rotulo: `faltam ${dias}d`,
       descricao: `Vence este mês, em ${dias} dias.`,
-      classe: "border-[#c98500]/55 bg-[#c98500]/15 text-amber-200",
+      classe: "border-[#c98500]/55 bg-[#c98500]/15 text-atencao",
       cor: "#c98500", peso: 50 - dias, pulsar: false,
     };
   }

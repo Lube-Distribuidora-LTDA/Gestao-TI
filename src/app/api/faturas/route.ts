@@ -1,117 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sessaoAtual, podeEscrever } from "@/lib/sessao-servidor";
+import { consultarFaturas } from "@/lib/consulta-faturas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Lista faturas com todos os filtros da tela. */
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const db = supabaseAdmin();
-
-  let q = db.from("vw_faturas_detalhe").select("*");
-
-  /*
-   * Fornecedor inativo sai da lista. Marcar como inativo é como se encerra um
-   * contrato aqui, e a competência dele não deveria mais ocupar a tela — a
-   * Data R Informática estava inativa e continuava aparecendo em outubro.
-   *
-   * `inativos=1` traz de volta, para quem precisar consultar o histórico de um
-   * fornecedor encerrado sem ter que reativá-lo só para olhar.
-   */
-  if (url.searchParams.get("inativos") !== "1") {
-    q = q.eq("fornecedor_ativo", true);
-  }
-
-  const competencia = url.searchParams.get("competencia");
-  const status = url.searchParams.get("status");
-  const fornecedor = url.searchParams.get("fornecedor");
-  const categoria = url.searchParams.get("categoria");
-  const filtro = url.searchParams.get("filtro");
-  const busca = url.searchParams.get("busca");
-
-  if (competencia) q = q.eq("competencia", competencia);
-  if (status) q = q.eq("status", status);
-  if (fornecedor) q = q.eq("fornecedor_id", fornecedor);
-  if (categoria) q = q.eq("categoria_id", categoria);
-  if (filtro === "vencidas") q = q.eq("vencida", true);
-  if (filtro === "revisao") q = q.eq("precisa_revisao", true);
-
-  /*
-   * Visão padrão: o que vence neste mês, mais tudo que ficou para trás e
-   * ainda não foi entregue. Sem isso a tela virava um arquivo histórico e o
-   * mês corrente se perdia no meio.
-   *
-   * `competencia` ou `mesVencimento` explícitos desligam o padrão: aí a
-   * pessoa está procurando um período específico e deve ver exatamente ele.
-   */
-  const mesVenc = url.searchParams.get("mesVencimento");
-  const semRecorte = competencia || mesVenc || filtro === "vencidas" || url.searchParams.get("tudo") === "1";
-
-  if (mesVenc) {
-    // "2026-09" -> todo o mês
-    const [ano, mes] = mesVenc.split("-").map(Number);
-    if (ano && mes) {
-      const primeiro = `${ano}-${String(mes).padStart(2, "0")}-01`;
-      const ultimo = new Date(ano, mes, 0).toISOString().slice(0, 10);
-      q = q.gte("vencimento", primeiro).lte("vencimento", ultimo);
-    }
-  } else if (!semRecorte) {
-    const hoje = new Date();
-    const primeiroDoMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
-      .toISOString()
-      .slice(0, 10);
-    // dia 0 do mês seguinte é o último dia deste mês
-    const ultimoDoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0)
-      .toISOString()
-      .slice(0, 10);
-
-    /*
-     * O mês corrente **fechado**, mais o que ficou atrasado e ainda está em
-     * aberto. O "ou" precisa ser uma condição só, senão o recorte do mês
-     * esconderia justamente as contas atrasadas que exigem ação.
-     *
-     * O limite superior importa: sem ele o corte era "do dia 1º em diante" e
-     * trazia junto o que vence nos meses seguintes. Com as competências de
-     * novembro abertas, a lista de outubro passou de 26 para 35 linhas — e o
-     * mês corrente, que é o que se fecha agora, se perdia no meio.
-     */
-    q = q.or(
-      `and(vencimento.gte.${primeiroDoMes},vencimento.lte.${ultimoDoMes}),` +
-        `and(vencimento.lt.${primeiroDoMes},status.in.(aguardando_documentos,documentos_recebidos,em_aprovacao))`
-    );
-  }
-
-  /* Degraus de alerta por proximidade do vencimento. Contas já pagas ou
-     canceladas ficam de fora: não há o que acompanhar nelas. */
-  if (filtro === "hoje" || filtro === "urgente" || filtro === "mes") {
-    const hoje = new Date();
-    const iso = (d: Date) => d.toISOString().slice(0, 10);
-
-    // assinada e entregue é fatura encerrada: não entra em alerta de vencimento
-    q = q.not("status", "in", "(paga,entregue_contabilidade,cancelada)");
-
-    if (filtro === "hoje") {
-      q = q.eq("vencimento", iso(hoje));
-    } else if (filtro === "urgente") {
-      // de hoje até duas semanas à frente
-      const limite = new Date(hoje);
-      limite.setDate(limite.getDate() + 14);
-      q = q.gte("vencimento", iso(hoje)).lte("vencimento", iso(limite));
-    } else {
-      // qualquer vencimento dentro do mês corrente
-      const primeiro = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-      const ultimo = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-      q = q.gte("vencimento", iso(primeiro)).lte("vencimento", iso(ultimo));
-    }
-  }
-  if (busca) {
-    const termo = busca.replace(/[%,()]/g, "");
-    q = q.or(`fornecedor_nome.ilike.%${termo}%,conta_descricao.ilike.%${termo}%`);
-  }
-
-  const { data, error } = await q.order("vencimento", { ascending: true });
+  const { data, error } = await consultarFaturas(new URL(req.url).searchParams);
   if (error) return NextResponse.json({ erro: error.message }, { status: 400 });
 
   return NextResponse.json({ dados: data ?? [] });

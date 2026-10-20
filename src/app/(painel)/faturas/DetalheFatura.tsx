@@ -191,13 +191,13 @@ export function DetalheFatura({
 
   if (carregando) {
     return (
-      <div className="flex items-center justify-center gap-3 py-14 text-sm text-lube-200/55">
+      <div className="flex items-center justify-center gap-3 py-14 text-sm text-t3">
         <Loader2 size={18} className="animate-spin" />
         Carregando...
       </div>
     );
   }
-  if (!fatura) return <p className="py-10 text-center text-sm text-lube-200/55">Fatura não encontrada.</p>;
+  if (!fatura) return <p className="py-10 text-center text-sm text-t3">Fatura não encontrada.</p>;
 
   const est = STATUS_FATURA[fatura.status as StatusFatura];
   const faltaNF = fatura.exige_nota_fiscal && !fatura.nota_fiscal_recebida_em;
@@ -237,19 +237,19 @@ export function DetalheFatura({
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-lg font-extrabold text-white">{fatura.fornecedor_nome}</div>
-            <div className="text-sm text-lube-200/65">
+            <div className="text-lg font-extrabold text-t1">{fatura.fornecedor_nome}</div>
+            <div className="text-sm text-t2">
               {fatura.conta_descricao}
               {fatura.identificador ? ` · ${fatura.identificador}` : ""}
             </div>
-            <div className="mt-1 text-xs text-lube-200/45">
+            <div className="mt-1 text-xs text-t3">
               {competenciaExtenso(fatura.competencia)} · vence {data(fatura.vencimento)}
-              {fatura.vencida && <span className="ml-1 font-bold text-red-300">(em atraso)</span>}
+              {fatura.vencida && <span className="ml-1 font-bold text-perigo">(em atraso)</span>}
             </div>
           </div>
           <div className="text-right">
             <Badge classe={est.classe} ponto={est.ponto}>{est.label}</Badge>
-            <div className="mt-2 text-2xl font-extrabold text-white">
+            <div className="mt-2 text-2xl font-extrabold text-t1">
               {moeda(Number(fatura.valor_efetivo))}
             </div>
           </div>
@@ -257,7 +257,7 @@ export function DetalheFatura({
 
         {faltaAlgo && (
           <div
-            className="mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-amber-100"
+            className="mt-3 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold text-atencao"
             style={{ borderColor: "rgba(201,133,0,.4)", background: "rgba(201,133,0,.1)" }}
           >
             <AlertTriangle size={14} />
@@ -349,7 +349,7 @@ export function DetalheFatura({
 
       {/* ---------- valores ---------- */}
       <div>
-        <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+        <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
           Conferência de valores
         </h3>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -396,7 +396,7 @@ export function DetalheFatura({
       {/* ---------- documentos ---------- */}
       <div>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+          <h3 className="text-sm font-extrabold uppercase tracking-wider text-t3">
             Documentos ({documentos.length})
           </h3>
           <div className="flex items-center gap-2">
@@ -429,7 +429,7 @@ export function DetalheFatura({
 
         {documentos.length === 0 ? (
           <p
-            className="rounded-xl border border-dashed px-4 py-7 text-center text-sm text-lube-200/45"
+            className="rounded-xl border border-dashed px-4 py-7 text-center text-sm text-t3"
             style={{ borderColor: "var(--color-border-soft)" }}
           >
             Nenhum documento recebido ainda.
@@ -447,14 +447,14 @@ export function DetalheFatura({
               >
                 {/* link de portal não é um arquivo nosso — o ícone diz isso antes de ler o rótulo */}
                 {d.tipo === "link_portal" ? (
-                  <ExternalLink size={17} className="shrink-0 text-lube-300" />
+                  <ExternalLink size={17} className="shrink-0 text-t3" />
                 ) : (
-                  <FileText size={17} className="shrink-0 text-lube-300" />
+                  <FileText size={17} className="shrink-0 text-t3" />
                 )}
 
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold text-white">{d.nome_arquivo}</div>
-                  <div className="flex flex-wrap items-center gap-x-2.5 text-[11px] text-lube-200/50">
+                  <div className="truncate text-sm font-bold text-t1">{d.nome_arquivo}</div>
+                  <div className="flex flex-wrap items-center gap-x-2.5 text-[11px] text-t3">
                     <span className="inline-flex items-center gap-1">
                       {d.origem === "email" ? <Bot size={10} /> : <User size={10} />}
                       {d.origem === "email" ? "recebido por e-mail" : "enviado manualmente"}
@@ -489,7 +489,7 @@ export function DetalheFatura({
                   {(d.storage_path || d.url_externa) && (
                     <button
                       onClick={() => abrirDocumento(d.id)}
-                      className="rounded-lg p-2 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                      className="rounded-lg p-2 text-t3 transition hover:bg-white/10 hover:text-t1"
                       title={d.url_externa ? "Abrir no portal do fornecedor" : "Abrir / imprimir"}
                     >
                       <ExternalLink size={15} />
@@ -497,7 +497,7 @@ export function DetalheFatura({
                   )}
                   <button
                     onClick={() => excluirDocumento(d.id, d.nome_arquivo)}
-                    className="rounded-lg p-2 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                    className="rounded-lg p-2 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                     title="Excluir"
                   >
                     <Trash2 size={15} />
@@ -512,7 +512,7 @@ export function DetalheFatura({
       {/* ---------- cobranças ---------- */}
       {cobrancas.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+          <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
             Histórico de cobrança ({cobrancas.length})
           </h3>
           <div className="space-y-2">
@@ -524,22 +524,22 @@ export function DetalheFatura({
               >
                 <Mail
                   size={16}
-                  className={c.status === "enviada" ? "text-emerald-300" : "text-red-300"}
+                  className={c.status === "enviada" ? "text-ok" : "text-perigo"}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-white">{c.assunto}</div>
-                  <div className="text-[11px] text-lube-200/50">
+                  <div className="truncate text-sm font-semibold text-t1">{c.assunto}</div>
+                  <div className="text-[11px] text-t3">
                     {c.tentativa}ª tentativa · {c.destinatario} ·{" "}
                     {c.enviada_em ? dataHora(c.enviada_em) : "não enviada"} ·{" "}
                     {c.automatica ? "automática" : "manual"}
                   </div>
-                  {c.erro && <div className="mt-0.5 text-[11px] text-red-300">{c.erro}</div>}
+                  {c.erro && <div className="mt-0.5 text-[11px] text-perigo">{c.erro}</div>}
                 </div>
                 <Badge
                   classe={
                     c.status === "enviada"
-                      ? "border-emerald-400/35 bg-emerald-400/12 text-emerald-200"
-                      : "border-[#ee1c25]/45 bg-[#ee1c25]/12 text-red-200"
+                      ? "border-ok/35 bg-ok/12 text-ok"
+                      : "border-perigo/45 bg-perigo/12 text-perigo"
                   }
                 >
                   {c.status}

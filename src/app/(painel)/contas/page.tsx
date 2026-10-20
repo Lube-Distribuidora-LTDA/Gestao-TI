@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Wallet, Plus, Search, Pencil, Trash2, Loader2, Bot, BellOff, FileSpreadsheet,
+  Wallet, Plus, Pencil, Trash2, Loader2, Bot, BellOff, FileSpreadsheet,
 } from "lucide-react";
+import { FaixaFiltros, FiltroMulti, Segmento, BuscaFiltro } from "@/components/Filtros";
 import { PageHeader, Modal, Vazio, Aviso, useAviso, BotaoAcao, Badge } from "@/components/UI";
 import { moeda } from "@/lib/format";
 import { PERIODICIDADE, type Periodicidade } from "@/lib/tipos";
@@ -46,9 +47,10 @@ export default function ContasPage() {
   const [categorias, setCategorias] = useState<Opcao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
-  const [fCategoria, setFCategoria] = useState("");
-  const [fFornecedor, setFFornecedor] = useState("");
-  const [fSituacao, setFSituacao] = useState("ativas");
+  // escolha múltipla (vazio = todos), no padrão de filtros dos sistemas
+  const [fCategoria, setFCategoria] = useState<string[]>([]);
+  const [fFornecedor, setFFornecedor] = useState<string[]>([]);
+  const [fSituacao, setFSituacao] = useState<"ativas" | "inativas" | "todas">("ativas");
   const [exportando, setExportando] = useState(false);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<string | null>(null);
@@ -157,9 +159,8 @@ export default function ContasPage() {
    * mostra.
    */
   const contas = lista.filter((c) => {
-    if (fCategoria === "sem" ? c.categoria_id !== null : fCategoria && c.categoria_id !== fCategoria)
-      return false;
-    if (fFornecedor && c.fornecedor_id !== fFornecedor) return false;
+    if (fCategoria.length && !fCategoria.includes(c.categoria_id ?? "sem")) return false;
+    if (fFornecedor.length && !fFornecedor.includes(c.fornecedor_id)) return false;
     if (fSituacao === "ativas" && !c.ativo) return false;
     if (fSituacao === "inativas" && c.ativo) return false;
     return true;
@@ -169,7 +170,25 @@ export default function ContasPage() {
     .filter((c) => c.ativo && c.periodicidade === "mensal")
     .reduce((s, c) => s + Number(c.valor_previsto ?? 0), 0);
 
-  const filtrando = !!(busca || fCategoria || fFornecedor || fSituacao !== "ativas");
+  const filtrando = !!(busca || fCategoria.length || fFornecedor.length || fSituacao !== "ativas");
+
+  const opCategoria = [
+    ...categorias.map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
+    { id: "sem", nome: "Sem categoria" },
+  ];
+  const opFornecedor = fornecedores.map((f) => ({ id: f.id, nome: f.nome }));
+  const pilulas = [
+    ...fCategoria.map((id) => ({
+      rotulo: "Categoria",
+      texto: opCategoria.find((o) => o.id === id)?.nome ?? id,
+      remover: () => setFCategoria((a) => a.filter((x) => x !== id)),
+    })),
+    ...fFornecedor.map((id) => ({
+      rotulo: "Fornecedor",
+      texto: nomeFornecedor(id),
+      remover: () => setFFornecedor((a) => a.filter((x) => x !== id)),
+    })),
+  ];
 
   /*
    * A planilha sai do servidor já montada, com os mesmos filtros da tela: sem
@@ -180,8 +199,8 @@ export default function ContasPage() {
     try {
       const qs = new URLSearchParams();
       if (busca) qs.set("busca", busca);
-      if (fCategoria) qs.set("categoria", fCategoria);
-      if (fFornecedor) qs.set("fornecedor", fFornecedor);
+      if (fCategoria.length) qs.set("categoria", fCategoria.join(","));
+      if (fFornecedor.length) qs.set("fornecedor", fFornecedor.join(","));
       qs.set("situacao", fSituacao);
 
       const r = await fetch(`/api/contas/exportar?${qs}`);
@@ -224,63 +243,17 @@ export default function ContasPage() {
         }
       />
 
-      <div className="card mb-5 animate-fade-up no-print">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[210px] flex-1">
-            <label className="label">Buscar</label>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-              <input
-                className="input pl-9"
-                placeholder="Conta, contrato ou centro de custo..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="w-[190px]">
-            <label className="label">Categoria</label>
-            <select
-              className="input"
-              value={fCategoria}
-              onChange={(e) => setFCategoria(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-              <option value="sem">Sem categoria</option>
-            </select>
-          </div>
-
-          <div className="w-[180px]">
-            <label className="label">Fornecedor</label>
-            <select
-              className="input"
-              value={fFornecedor}
-              onChange={(e) => setFFornecedor(e.target.value)}
-            >
-              <option value="">Todos</option>
-              {fornecedores.map((f) => (
-                <option key={f.id} value={f.id}>{f.nome}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-[135px]">
-            <label className="label">Situação</label>
-            <select className="input" value={fSituacao} onChange={(e) => setFSituacao(e.target.value)}>
-              <option value="ativas">Ativas</option>
-              <option value="inativas">Inativas</option>
-              <option value="todas">Todas</option>
-            </select>
-          </div>
-
+      <FaixaFiltros
+        pilulas={pilulas}
+        aoLimpar={() => {
+          setFCategoria([]);
+          setFFornecedor([]);
+        }}
+        direita={
           <BotaoAcao
             onClick={exportar}
             carregando={exportando}
-            className="btn-ghost"
+            className="btn-ghost !h-[34px] !px-3"
             disabled={contas.length === 0}
             title={
               contas.length === 0
@@ -288,29 +261,41 @@ export default function ContasPage() {
                 : "Baixar em Excel o que está na tela"
             }
           >
-            <FileSpreadsheet size={15} />
-            Exportar
+            {!exportando && <FileSpreadsheet size={14} />}
+            Excel
           </BotaoAcao>
-        </div>
+        }
+      >
+        <Segmento
+          valor={fSituacao}
+          aoMudar={setFSituacao}
+          opcoes={[
+            { v: "ativas", rotulo: "Ativas" },
+            { v: "inativas", rotulo: "Inativas" },
+            { v: "todas", rotulo: "Todas" },
+          ]}
+        />
+        <FiltroMulti rotulo="Categoria" opcoes={opCategoria} selecionados={fCategoria} aoMudar={setFCategoria} />
+        <FiltroMulti rotulo="Fornecedor" opcoes={opFornecedor} selecionados={fFornecedor} aoMudar={setFFornecedor} />
+        <BuscaFiltro valor={busca} aoMudar={setBusca} placeholder="Conta, contrato ou centro de custo…" />
+      </FaixaFiltros>
 
-        <div
-          className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm"
-          style={{ borderColor: "var(--color-border-soft)" }}
-        >
-          <span className="text-lube-200/55">
+      <div className="mb-4 animate-fade-up no-print">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm">
+          <span className="text-t3">
             {contas.length} de {lista.length} contrato(s)
-            {filtrando && <span className="text-lube-300/70"> · filtro aplicado</span>}
+            {filtrando && <span className="text-t3"> · filtro aplicado</span>}
           </span>
           <span>
-            <span className="text-lube-200/55">Custo fixo mensal previsto: </span>
-            <span className="font-extrabold text-white">{moeda(totalMensal)}</span>
+            <span className="text-t3">Custo fixo mensal previsto: </span>
+            <span className="num font-extrabold text-t1">{moeda(totalMensal)}</span>
           </span>
         </div>
       </div>
 
       {fornecedores.length === 0 && !carregando && (
         <div
-          className="mb-5 rounded-xl border px-4 py-3 text-sm text-amber-100"
+          className="mb-5 rounded-xl border px-4 py-3 text-sm text-atencao"
           style={{ borderColor: "rgba(201,133,0,.4)", background: "rgba(201,133,0,.1)" }}
         >
           Cadastre um fornecedor antes de criar contas.{" "}
@@ -321,7 +306,7 @@ export default function ContasPage() {
       )}
 
       {carregando ? (
-        <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+        <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
           <Loader2 size={18} className="animate-spin" /> Carregando...
         </div>
       ) : contas.length === 0 ? (
@@ -353,17 +338,17 @@ export default function ContasPage() {
                 return (
                   <tr key={c.id} className={c.ativo ? "" : "opacity-50"}>
                     <td>
-                      <div className="font-bold text-white">{c.descricao}</div>
-                      <div className="text-xs text-lube-200/50">
+                      <div className="font-bold text-t1">{c.descricao}</div>
+                      <div className="text-xs text-t3">
                         {c.identificador ? `${c.identificador} · ` : ""}
                         {PERIODICIDADE[c.periodicidade]}
                         {c.centro_custo ? ` · ${c.centro_custo}` : ""}
                       </div>
                     </td>
-                    <td className="text-lube-100">{nomeFornecedor(c.fornecedor_id)}</td>
+                    <td className="text-t1">{nomeFornecedor(c.fornecedor_id)}</td>
                     <td>
                       {cat ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-lube-100">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-t1">
                           <span
                             className="h-2.5 w-2.5 rounded-sm"
                             style={{ background: cat.cor, outline: "2px solid #0e1742" }}
@@ -371,22 +356,22 @@ export default function ContasPage() {
                           {cat.nome}
                         </span>
                       ) : (
-                        <span className="text-xs text-lube-200/40">—</span>
+                        <span className="text-xs text-t3">—</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap text-right font-bold text-white">
+                    <td className="whitespace-nowrap text-right font-bold text-t1">
                       {moeda(Number(c.valor_previsto))}
                     </td>
-                    <td className="text-center text-lube-100">
+                    <td className="text-center text-t1">
                       {c.dia_vencimento ? `dia ${c.dia_vencimento}` : "—"}
                     </td>
                     <td>
                       <div className="flex justify-center gap-1">
                         {c.exige_nota_fiscal && (
-                          <span className="badge border-lube-400/30 bg-lube-500/12 text-lube-100">NF</span>
+                          <span className="badge border-lube-400/30 bg-lube-500/12 text-t1">NF</span>
                         )}
                         {c.exige_fatura && (
-                          <span className="badge border-lube-400/30 bg-lube-500/12 text-lube-100">Fat</span>
+                          <span className="badge border-lube-400/30 bg-lube-500/12 text-t1">Fat</span>
                         )}
                       </div>
                     </td>
@@ -394,11 +379,11 @@ export default function ContasPage() {
                       <div className="flex justify-center">
                         {c.cobranca_ativa ? (
                           <span title={`Cobra a partir de ${c.dias_antes_vencimento} dias antes, a cada ${c.intervalo_cobranca_dias} dias, até ${c.max_cobrancas}x`}>
-                            <Bot size={16} className="text-emerald-300" />
+                            <Bot size={16} className="text-ok" />
                           </span>
                         ) : (
                           <span title="Cobrança automática desligada para esta conta">
-                            <BellOff size={16} className="text-lube-300/45" />
+                            <BellOff size={16} className="text-t3" />
                           </span>
                         )}
                       </div>
@@ -407,13 +392,13 @@ export default function ContasPage() {
                       <div className="flex justify-center gap-1">
                         <button
                           onClick={() => abrirEdicao(c)}
-                          className="rounded-lg p-1.5 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-white/10 hover:text-t1"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => excluir(c)}
-                          className="rounded-lg p-1.5 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                          className="rounded-lg p-1.5 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -534,13 +519,13 @@ export default function ContasPage() {
             className="rounded-xl border p-4"
             style={{ borderColor: "var(--color-border-soft)", background: "rgba(70,89,224,.06)" }}
           >
-            <h4 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-white">
-              <Bot size={16} className="text-lube-300" />
+            <h4 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-t1">
+              <Bot size={16} className="text-t3" />
               Automação de documentos
             </h4>
 
             <div className="mb-4 flex flex-wrap gap-5">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-lube-100">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-t1">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-[#4659e0]"
@@ -549,7 +534,7 @@ export default function ContasPage() {
                 />
                 Exige nota fiscal
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-lube-100">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-t1">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-[#4659e0]"
@@ -558,7 +543,7 @@ export default function ContasPage() {
                 />
                 Exige fatura/boleto
               </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-lube-100">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-t1">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-[#4659e0]"
@@ -581,7 +566,7 @@ export default function ContasPage() {
                     value={form.dias_antes_vencimento}
                     onChange={(e) => setForm({ ...form, dias_antes_vencimento: e.target.value })}
                   />
-                  <span className="whitespace-nowrap text-xs text-lube-200/55">dias antes</span>
+                  <span className="whitespace-nowrap text-xs text-t3">dias antes</span>
                 </div>
               </div>
               <div>
@@ -595,7 +580,7 @@ export default function ContasPage() {
                     value={form.intervalo_cobranca_dias}
                     onChange={(e) => setForm({ ...form, intervalo_cobranca_dias: e.target.value })}
                   />
-                  <span className="text-xs text-lube-200/55">dias</span>
+                  <span className="text-xs text-t3">dias</span>
                 </div>
               </div>
               <div>
@@ -619,7 +604,7 @@ export default function ContasPage() {
                 value={form.palavras_chave}
                 onChange={(e) => setForm({ ...form, palavras_chave: e.target.value })}
               />
-              <p className="mt-1 text-[11px] text-lube-200/45">
+              <p className="mt-1 text-[11px] text-t3">
                 Só é necessário quando o mesmo fornecedor tem mais de um contrato — ajuda o robô a
                 saber a qual deles o e-mail se refere.
               </p>
@@ -635,7 +620,7 @@ export default function ContasPage() {
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-lube-100">
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-t1">
             <input
               type="checkbox"
               className="h-4 w-4 accent-[#4659e0]"

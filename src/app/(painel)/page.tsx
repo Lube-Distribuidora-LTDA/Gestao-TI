@@ -15,9 +15,9 @@ export const dynamic = "force-dynamic";
    Mesmo vocabulário da tela do quadro, para os dois não divergirem. */
 const PONTO_KANBAN: Record<string, string> = {
   azul: "bg-lube-400",
-  verde: "bg-emerald-400",
-  vermelho: "bg-red-400",
-  ambar: "bg-amber-400",
+  verde: "bg-ok",
+  vermelho: "bg-perigo",
+  ambar: "bg-atencao",
   cinza: "bg-lube-300/60",
 };
 
@@ -128,9 +128,9 @@ export default async function Dashboard() {
     comAlerta.filter((x) => x.a.nivel === nivel).sort((x, y) => y.a.peso - x.a.peso);
 
   const DEGRAUS = [
-    { nivel: "vencida", filtro: "vencidas", cor: "#ee1c25", Icone: AlertTriangle, pulsar: true,
+    { nivel: "vencida", filtro: "vencidas", cor: "#ff6b74", Icone: AlertTriangle, pulsar: true,
       titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vencida${n > 1 ? "s" : ""} — resolver agora` },
-    { nivel: "hoje", filtro: "hoje", cor: "#ee1c25", Icone: AlertTriangle, pulsar: true,
+    { nivel: "hoje", filtro: "hoje", cor: "#ff6b74", Icone: AlertTriangle, pulsar: true,
       titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vence${n > 1 ? "m" : ""} hoje` },
     { nivel: "urgente", filtro: "urgente", cor: "#d95926", Icone: CalendarClock, pulsar: false,
       titulo: (n: number) => `${n} fatura${n > 1 ? "s" : ""} vence${n > 1 ? "m" : ""} em até duas semanas` },
@@ -163,9 +163,9 @@ export default async function Dashboard() {
           ultimaExec && (
             <div className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs"
                  style={{ borderColor: "var(--color-border-soft)", background: "rgba(255,255,255,.03)" }}>
-              <Bot size={15} className={ultimaExec.sucesso === false ? "text-red-300" : "text-emerald-300"} />
-              <span className="text-lube-200/70">Robô:</span>
-              <span className="font-bold text-white">{dataHora(ultimaExec.iniciado_em)}</span>
+              <Bot size={15} className={ultimaExec.sucesso === false ? "text-perigo" : "text-ok"} />
+              <span className="text-t2">Robô:</span>
+              <span className="font-bold text-t1">{dataHora(ultimaExec.iniciado_em)}</span>
             </div>
           )
         }
@@ -221,18 +221,18 @@ export default async function Dashboard() {
           href="/kanban"
           className="card card-hover mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 animate-fade-up"
         >
-          <span className="flex items-center gap-2 text-sm font-bold text-white">
-            <KanbanSquare size={17} className="text-lube-300" />
+          <span className="flex items-center gap-2 text-sm font-bold text-t1">
+            <KanbanSquare size={17} className="text-t3" />
             Kanban TI
           </span>
           {kanban.map((c) => (
             <span key={c.nome} className="flex items-center gap-2 text-sm">
               <span className={`h-2 w-2 rounded-full ${PONTO_KANBAN[c.cor] ?? PONTO_KANBAN.cinza}`} />
-              <span className="text-lube-200/60">{c.nome}</span>
-              <span className="font-bold text-white">{c.quantos}</span>
+              <span className="text-t3">{c.nome}</span>
+              <span className="font-bold text-t1">{c.quantos}</span>
             </span>
           ))}
-          <ArrowRight size={15} className="ml-auto text-lube-300/60" />
+          <ArrowRight size={15} className="ml-auto text-t3" />
         </Link>
       )}
 
@@ -262,7 +262,7 @@ export default async function Dashboard() {
                 <div className="font-bold" style={{ color: a.cor }}>
                   {a.titulo}
                 </div>
-                <div className="mt-0.5 text-sm text-lube-100/75">
+                <div className="mt-0.5 text-sm text-t1">
                   {a.itens.slice(0, 3).join(" · ")}
                   {a.itens.length > 3 && ` e mais ${a.itens.length - 3}`}
                 </div>
@@ -319,13 +319,13 @@ export default async function Dashboard() {
         <div className="card animate-fade-up" style={{ animationDelay: "300ms" }}>
           <div className="mb-4 flex items-center justify-between gap-3">
             <CabecalhoCard titulo="Próximas faturas" sub="Ordenadas por vencimento" semMargem />
-            <Link href="/faturas" className="text-xs font-bold text-lube-300 hover:text-white">
+            <Link href="/faturas" className="text-xs font-bold text-t3 hover:text-t1">
               ver todas →
             </Link>
           </div>
 
           {(pendentes ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-lube-200/45">
+            <p className="py-8 text-center text-sm text-t3">
               Nenhuma fatura pendente. Tudo em dia por aqui.
             </p>
           ) : (
@@ -344,14 +344,14 @@ export default async function Dashboard() {
                       style={{ background: f.categoria_cor ?? "#64748b" }}
                     />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-white">{f.fornecedor_nome}</div>
-                      <div className="truncate text-xs text-lube-200/55">
+                      <div className="truncate text-sm font-bold text-t1">{f.fornecedor_nome}</div>
+                      <div className="truncate text-xs text-t3">
                         {f.conta_descricao} · {competenciaLabel(f.competencia)}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="text-sm font-bold text-white">{moeda(Number(f.valor_efetivo))}</div>
-                      <div className={`text-[11px] font-semibold ${f.vencida ? "text-red-300" : "text-lube-200/55"}`}>
+                      <div className="text-sm font-bold text-t1">{moeda(Number(f.valor_efetivo))}</div>
+                      <div className={`text-[11px] font-semibold ${f.vencida ? "text-perigo" : "text-t3"}`}>
                         {f.vencida ? `venceu ${data(f.vencimento)}` : data(f.vencimento)}
                       </div>
                     </div>
@@ -373,13 +373,13 @@ export default async function Dashboard() {
         <div className="card animate-fade-up" style={{ animationDelay: "340ms" }}>
           <div className="mb-4 flex items-center justify-between gap-3">
             <CabecalhoCard titulo="Chamados ativos" sub="Mais recentes primeiro" semMargem />
-            <Link href="/chamados" className="text-xs font-bold text-lube-300 hover:text-white">
+            <Link href="/chamados" className="text-xs font-bold text-t3 hover:text-t1">
               ver todos →
             </Link>
           </div>
 
           {(chamadosRecentes ?? []).length === 0 ? (
-            <p className="py-8 text-center text-sm text-lube-200/45">
+            <p className="py-8 text-center text-sm text-t3">
               Nenhum chamado em aberto.
             </p>
           ) : (
@@ -396,13 +396,13 @@ export default async function Dashboard() {
                   >
                     <span className={`h-2 w-2 shrink-0 rounded-full ${pr.ponto}`} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-bold text-white">{c.titulo}</div>
-                      <div className="truncate text-xs text-lube-200/55">
+                      <div className="truncate text-sm font-bold text-t1">{c.titulo}</div>
+                      <div className="truncate text-xs text-t3">
                         {c.protocolo} · {c.solicitante_nome}
                         {c.solicitante_setor ? ` — ${c.solicitante_setor}` : ""}
                       </div>
                     </div>
-                    <div className="hidden shrink-0 items-center gap-1 text-[11px] text-lube-200/50 sm:flex">
+                    <div className="hidden shrink-0 items-center gap-1 text-[11px] text-t3 sm:flex">
                       <Clock size={12} />
                       {data(c.aberto_em)}
                     </div>
@@ -418,9 +418,9 @@ export default async function Dashboard() {
       </div>
 
       {/* rodapé de saúde */}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-lube-200/40">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-t3">
         <span className="inline-flex items-center gap-1.5">
-          <CheckCircle2 size={13} className="text-emerald-400/70" />
+          <CheckCircle2 size={13} className="text-ok/70" />
           Sistema de Gestão de TI · Lube Distribuidora
         </span>
         <span>Competência {competenciaLabel(compAtual)}</span>
@@ -440,8 +440,8 @@ function CabecalhoCard({
 }) {
   return (
     <div className={semMargem ? "" : "mb-4"}>
-      <h2 className="text-base font-extrabold text-white">{titulo}</h2>
-      {sub && <p className="mt-0.5 text-xs text-lube-200/50">{sub}</p>}
+      <h2 className="text-base font-extrabold text-t1">{titulo}</h2>
+      {sub && <p className="mt-0.5 text-xs text-t3">{sub}</p>}
     </div>
   );
 }

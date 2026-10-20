@@ -92,5 +92,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // fontes (public/fonts) são arquivo estático sem dado: passam direto, senão a tela de login
+  // carregaria sem elas
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|fonts/).*)"],
 };

@@ -1,77 +1,214 @@
 @import "tailwindcss";
 
 /* =========================================================
-   LUBE DISTRIBUIDORA — Identidade visual
-   Azul marinho profundo + vermelho de acento
+   LUBE DISTRIBUIDORA — padrão dos sistemas (Cérebro da Lube,
+   "Como eu gosto dos BIs" › Estilo visual).
+
+   O GESTÃO TI foi a origem desse padrão em 2026-09-24; os sistemas
+   seguintes (Financeiro, Comercial, Trade, Inventário, Fiscal) o
+   evoluíram — fontes encorpadas, ouro como acento, cor de estado
+   separada da cor da marca. Esta folha traz o Gestão TI de volta
+   ao padrão que ele mesmo originou, com os tokens do painel Fiscal.
+
+   Fontes hospedadas localmente (public/fonts): nada de CDN, que
+   quebraria se a rede da empresa bloqueasse o domínio.
    ========================================================= */
 
-@theme {
-  /* Azuis da marca */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/Archivo-600.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/Archivo-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/Archivo-800.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/Archivo-900.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/IBMPlexSans-500.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/IBMPlexSans-600.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(/fonts/IBMPlexSans-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/JetBrainsMono-500.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/JetBrainsMono-600.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/JetBrainsMono-700.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url(/fonts/JetBrainsMono-800.woff2) format('woff2');
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #050b1c; --bg-2: #08122b;
+  --s1: #0d1830; --s2: #132242; --s3: #1a2c52; --s-sobe: #16264a;
+  --linha: #1e3059; --linha-2: #2a4275; --luz: rgba(255, 255, 255, .07);
+  --t1: #f4f7ff; --t2: #aec0e2; --t3: #7c92be;
+
+  /* marca */
+  --azul: #2a41c8; --azul-lt: #6b88ff; --verm: #e5202c; --verm-lt: #ff6b74;
+  /* acento do "painel de luxo" */
+  --ouro: #e9c877; --ouro-forte: #f7e3ac; --ouro-dim: rgba(233, 200, 119, .13); --ouro-linha: rgba(233, 200, 119, .42);
+
+  /* estado — separado da cor da marca */
+  --ok: #34e89e; --atencao: #ffb340; --perigo: #ff6b74; --info: #5fb2ff;
+  --ok-bg: rgba(52, 232, 158, .12); --atencao-bg: rgba(255, 179, 64, .13);
+  --perigo-bg: rgba(255, 107, 116, .13); --info-bg: rgba(95, 178, 255, .13);
+
+  --sombra: 0 1px 0 rgba(255, 255, 255, .045) inset, 0 18px 40px -22px rgba(0, 0, 0, .7);
+  --brilho-1: radial-gradient(900px 520px at 8% -8%, rgba(42, 65, 200, .22), transparent 62%);
+  --brilho-2: radial-gradient(760px 480px at 100% 108%, rgba(233, 200, 119, .07), transparent 60%);
+
+  --f-tit: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --f-txt: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --raio: 16px;
+}
+
+/* Os nomes antigos do Tailwind (lube-*, surface-*, brand-red) continuam
+   valendo e passam a apontar para os tokens acima: as telas mudam de cara
+   sem cada classe precisar ser reescrita. */
+@theme inline {
   --color-lube-50:  #eef2ff;
   --color-lube-100: #dfe6ff;
   --color-lube-200: #c2cfff;
   --color-lube-300: #96abff;
-  --color-lube-400: #6a81f7;
-  --color-lube-500: #4659e0;
-  --color-lube-600: #2f3cc4;
-  --color-lube-700: #1e2f8f;   /* azul do logo */
+  --color-lube-400: var(--azul-lt);
+  --color-lube-500: #4a63e6;
+  --color-lube-600: var(--azul);
+  --color-lube-700: #1e2f8f;
   --color-lube-800: #16225f;
   --color-lube-900: #0e1742;
   --color-lube-950: #070d2a;
 
-  /* Vermelho do logo */
-  --color-brand-red:      #ee1c25;
-  --color-brand-red-dark: #c40f18;
+  --color-brand-red:      var(--verm);
+  --color-brand-red-dark: #b8121c;
 
-  /* Superfícies do tema escuro */
-  --color-surface-0: #060b22;
-  --color-surface-1: #0b1233;
-  --color-surface-2: #111a45;
-  --color-surface-3: #18245a;
-  --color-border-soft: rgba(126, 148, 255, 0.16);
+  --color-surface-0: var(--bg);
+  --color-surface-1: var(--s1);
+  --color-surface-2: var(--s2);
+  --color-surface-3: var(--s3);
+  --color-border-soft: var(--linha);
 
-  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --color-t1: var(--t1);
+  --color-t2: var(--t2);
+  --color-t3: var(--t3);
+  --color-linha: var(--linha);
+  --color-ouro: var(--ouro);
+  --color-ouro-forte: var(--ouro-forte);
+  --color-ok: var(--ok);
+  --color-atencao: var(--atencao);
+  --color-perigo: var(--perigo);
+  --color-info: var(--info);
+
+  --font-sans: var(--f-txt);
+  --font-display: var(--f-tit);
+  --font-mono: var(--f-num);
 }
 
 /* ---------------- Base ---------------- */
-html { color-scheme: dark; }
-
 body {
-  background:
-    radial-gradient(1200px 600px at 12% -8%,  rgba(46, 61, 196, 0.30), transparent 60%),
-    radial-gradient(900px 500px at 92% 4%,    rgba(238, 28, 37, 0.13), transparent 58%),
-    radial-gradient(700px 700px at 50% 118%,  rgba(70, 89, 224, 0.18), transparent 60%),
-    var(--color-surface-0);
-  background-attachment: fixed;
-  color: #e8ecff;
-  font-family: var(--font-sans);
+  margin: 0;
   min-height: 100vh;
+  background: var(--bg);
+  background-image: var(--brilho-1), var(--brilho-2);
+  background-attachment: fixed;
+  color: var(--t1);
+  /* 500 é o peso base do texto, não 400 (pedido de 2026-09-25: "letra gordinha") */
+  font: 500 14px/1.45 var(--f-txt);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-::selection { background: var(--color-lube-500); color: #fff; }
+h1, h2, h3, h4 { font-family: var(--f-tit); }
 
-/* Scrollbar */
+/* todo número, valor e código em JetBrains Mono, com dígito alinhado em coluna */
+.num, .mono { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+::selection { background: var(--ouro-dim); color: var(--t1); }
+:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, var(--color-lube-600), var(--color-lube-800));
-  border-radius: 8px;
+  background: var(--linha-2);
+  border-radius: 10px;
   border: 2px solid transparent;
-  background-clip: padding-box;
+  background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-lube-500); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--azul); background-clip: content-box; }
 
 /* ---------------- Componentes utilitários ---------------- */
 @layer components {
   .card {
     position: relative;
     overflow: hidden;
-    border-radius: 1rem;
-    border: 1px solid var(--color-border-soft);
+    border-radius: var(--raio);
+    border: 1px solid var(--linha);
     padding: 1.25rem;
-    background: linear-gradient(160deg, rgba(23, 34, 92, 0.82), rgba(9, 15, 46, 0.86));
-    box-shadow: 0 10px 34px -16px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .028), rgba(255, 255, 255, 0) 40%), var(--s1);
+    box-shadow: var(--sombra);
   }
 
   /* brilho diagonal que percorre o card no hover */
@@ -79,7 +216,7 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.07) 48%, transparent 58%);
+    background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.06) 48%, transparent 58%);
     transform: translateX(-120%);
     transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
     pointer-events: none;
@@ -87,15 +224,14 @@ body {
   .card-glow:hover::after { transform: translateX(120%); }
 
   .card-hover {
-    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.28s, box-shadow 0.28s;
+    transition: transform 0.18s ease, border-color 0.18s, box-shadow 0.18s;
   }
   .card-hover:hover {
-    transform: translateY(-3px);
-    border-color: rgba(138, 160, 255, 0.42);
-    box-shadow: 0 20px 46px -20px rgba(24, 40, 150, 0.95);
+    transform: translateY(-2px);
+    border-color: var(--linha-2);
   }
 
-  /* Base compartilhada dos botões — escrita uma vez, aplicada às três variantes.
+  /* Base compartilhada dos botões — escrita uma vez, aplicada às quatro variantes.
      (No Tailwind v4 uma classe do projeto não pode ser usada em @apply, então
      a composição é feita pelo próprio seletor.) */
   .btn,
@@ -106,15 +242,18 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 0.75rem;
-    padding: 0.625rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.25rem;
+    height: 40px;
+    border-radius: 11px;
+    padding: 0 18px;
+    font: 700 13px var(--f-txt);
     white-space: nowrap;
     cursor: pointer;
-    transition: all 0.2s ease;
+    border: 1px solid var(--linha);
+    background: var(--s2);
+    color: var(--t1);
+    transition: transform 0.12s, border-color 0.15s, background 0.15s, filter 0.15s;
   }
+  .btn:active, .btn-primary:active, .btn-danger:active, .btn-ghost:active { transform: scale(.98); }
   .btn:disabled,
   .btn-primary:disabled,
   .btn-danger:disabled,
@@ -122,74 +261,61 @@ body {
     opacity: 0.45;
     cursor: not-allowed;
   }
-  .btn:focus-visible,
-  .btn-primary:focus-visible,
-  .btn-danger:focus-visible,
-  .btn-ghost:focus-visible {
-    outline: 2px solid var(--color-lube-400);
-    outline-offset: 2px;
-  }
+  .btn:hover:not(:disabled) { border-color: var(--linha-2); }
 
+  /* Botão principal em vermelho Lube, nunca preto (Júlio, 2026-09-14) */
   .btn-primary {
     color: #fff;
-    background: linear-gradient(135deg, var(--color-lube-600), var(--color-lube-800));
-    box-shadow: 0 8px 22px -10px rgba(47, 60, 196, 0.95);
+    border-color: transparent;
+    background: linear-gradient(180deg, #f0323e, var(--verm));
+    box-shadow: 0 10px 24px -10px rgba(229, 32, 44, .8);
   }
-  .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--color-lube-500), var(--color-lube-700));
-    transform: translateY(-1px);
-    box-shadow: 0 12px 28px -10px rgba(70, 89, 224, 1);
-  }
+  .btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
 
+  /* Ação destrutiva em contorno: se fosse sólida também, "Salvar" e
+     "Excluir" teriam a mesma cara. */
   .btn-danger {
-    color: #fff;
-    background: linear-gradient(135deg, var(--color-brand-red), var(--color-brand-red-dark));
-    box-shadow: 0 8px 22px -10px rgba(238, 28, 37, 0.8);
+    color: var(--verm-lt);
+    background: var(--perigo-bg);
+    border-color: rgba(255, 107, 116, .35);
   }
-  .btn-danger:hover:not(:disabled) {
-    transform: translateY(-1px);
-    filter: brightness(1.08);
-  }
+  .btn-danger:hover:not(:disabled) { background: rgba(255, 107, 116, .2); border-color: var(--verm-lt); }
 
   .btn-ghost {
-    color: var(--color-lube-100);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--color-border-soft);
+    color: var(--t2);
+    background: var(--s1);
+    border: 1px solid var(--linha);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(138, 160, 255, 0.45);
+    color: var(--ouro-forte);
+    border-color: var(--ouro-linha);
   }
 
   .input {
     width: 100%;
-    border-radius: 0.75rem;
-    border: 1px solid var(--color-border-soft);
-    padding: 0.625rem 0.875rem;
-    font-size: 0.875rem;
-    color: #fff;
-    background: rgba(6, 11, 34, 0.72);
-    transition: all 0.2s ease;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--linha);
+    padding: 0 12px;
+    font: 500 13.5px var(--f-txt);
+    color: var(--t1);
+    background: var(--s1);
+    transition: border-color 0.15s;
   }
-  .input::placeholder { color: rgba(150, 171, 255, 0.45); }
-  .input:focus {
-    outline: none;
-    border-color: var(--color-lube-400);
-    box-shadow: 0 0 0 3px rgba(106, 129, 247, 0.22);
-    background: rgba(6, 11, 34, 0.92);
-  }
+  textarea.input { height: auto; padding: 10px 12px; }
+  .input::placeholder { color: var(--t3); }
+  .input:focus { outline: none; border-color: var(--ouro-linha); }
   .input:disabled { opacity: 0.55; cursor: not-allowed; }
   /* as opções do select herdam o fundo do sistema; forçamos o tema escuro */
-  .input option { background: #0b1233; color: #e8ecff; }
+  .input option { background: var(--s1); color: var(--t1); }
 
   .label {
     display: block;
     margin-bottom: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font: 700 10.5px var(--f-txt);
+    letter-spacing: .14em;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: rgba(150, 171, 255, 0.85);
+    color: var(--t3);
   }
 
   .badge {
@@ -199,45 +325,183 @@ body {
     border-radius: 9999px;
     border: 1px solid transparent;
     padding: 0.25rem 0.625rem;
-    font-size: 11px;
-    font-weight: 700;
+    font: 700 11px var(--f-txt);
     text-transform: uppercase;
-    letter-spacing: 0.025em;
+    letter-spacing: 0.04em;
     white-space: nowrap;
   }
 
   .table-wrap {
     overflow-x: auto;
-    border-radius: 1rem;
-    border: 1px solid var(--color-border-soft);
-    background: rgba(9, 15, 46, 0.55);
+    border-radius: var(--raio);
+    border: 1px solid var(--linha);
+    background: var(--s1);
+    box-shadow: var(--sombra);
   }
   .tbl {
     width: 100%;
-    font-size: 0.875rem;
+    font-size: 13.5px;
     border-collapse: collapse;
   }
   .tbl thead th {
     padding: 0.75rem 1rem;
     text-align: left;
-    font-size: 11px;
-    font-weight: 700;
+    font: 700 10.5px var(--f-txt);
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-lube-300);
-    background: rgba(22, 34, 95, 0.75);
-    border-bottom: 1px solid var(--color-border-soft);
+    color: var(--t3);
+    background: var(--s2);
+    border-bottom: 1px solid var(--linha);
     white-space: nowrap;
   }
   .tbl tbody td {
     padding: 0.75rem 1rem;
     vertical-align: middle;
-    border-bottom: 1px solid rgba(126, 148, 255, 0.09);
+    border-bottom: 1px solid var(--linha);
   }
-  .tbl tbody tr { transition: background 0.18s; }
-  .tbl tbody tr:hover { background: rgba(70, 89, 224, 0.12); }
+  /* coluna de valor (alinhada à direita) em JetBrains Mono, dígito alinhado em coluna */
+  .tbl td.text-right { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+  .tbl tbody tr { transition: background 0.15s; }
+  .tbl tbody tr:hover { background: var(--luz); }
   .tbl tbody tr:last-child td { border-bottom: none; }
+
+  /* título de seção pesa mais que o subtítulo de dentro dela:
+     barra vertical azul acesa, texto claro, maior e mais forte */
+  .titulo-secao {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font: 800 15.5px/1.2 var(--f-tit);
+    color: var(--t1);
+  }
+  .titulo-secao::before {
+    content: "";
+    width: 4px;
+    height: 17px;
+    border-radius: 3px;
+    background: var(--azul-lt);
+    box-shadow: 0 0 12px var(--azul);
+    flex: none;
+  }
 }
+
+/* ---------------- Faixa de filtros (padrão "Filtro de chips" dos sistemas) ----------------
+   Mesmo desenho do Fiscal (js/filtros.js): rótulo "Filtros", período em segmento,
+   um botão por dimensão abrindo lista com busca, pílulas removíveis e "Limpar filtros". */
+.faixa-filtros {
+  position: relative;
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+  border: 1px solid var(--linha);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(12px);
+}
+@media (min-width: 1100px) and (min-height: 700px) {
+  .faixa-filtros { position: sticky; top: 10px; }
+}
+.fx-rot {
+  display: flex; align-items: center; gap: 7px; margin-right: 4px;
+  font: 700 10.5px var(--f-txt); letter-spacing: .16em; text-transform: uppercase; color: var(--t3);
+}
+.fx-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  border-radius: 10px; border: 1px solid var(--linha); background: var(--s1); color: var(--t2);
+  font: 600 12.5px var(--f-txt); white-space: nowrap; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.fx-btn:hover { border-color: var(--linha-2); color: var(--t1); }
+.fx-btn.on { border-color: var(--ouro-linha); background: var(--ouro-dim); color: var(--ouro-forte); }
+.fx-btn .n { font: 700 11px var(--f-num); background: var(--ouro); color: #1b1303; border-radius: 99px; padding: 1px 7px; }
+.fx-busca { position: relative; flex: 1 1 200px; max-width: 300px; }
+.fx-busca input {
+  width: 100%; height: 34px; border-radius: 10px; border: 1px solid var(--linha); background: var(--s1);
+  color: var(--t1); padding: 0 12px 0 32px; font: 500 13px var(--f-txt); outline: 0;
+}
+.fx-busca input:focus { border-color: var(--ouro-linha); }
+.fx-busca input::placeholder { color: var(--t3); }
+.fx-busca svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--t3); }
+.fx-limpar {
+  margin-left: auto; border: 0; background: transparent; color: var(--t3); cursor: pointer;
+  font: 600 12.5px var(--f-txt); padding: 6px 8px; border-radius: 8px;
+}
+.fx-limpar:hover { color: var(--verm-lt); background: var(--perigo-bg); }
+.fx-pilulas { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.pilula {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 360px;
+  background: var(--ouro-dim); border: 1px solid var(--ouro-linha); color: var(--ouro-forte);
+  border-radius: 99px; padding: 3px 6px 3px 11px; font: 600 12px var(--f-txt);
+}
+.pilula b { font-weight: 700; color: var(--t3); text-transform: uppercase; font-size: 10px; letter-spacing: .1em; }
+.pilula span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pilula button {
+  border: 0; background: rgba(0, 0, 0, .18); color: inherit; width: 18px; height: 18px; border-radius: 50%;
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+}
+.pilula button:hover { background: var(--verm); color: #fff; }
+
+.seg { display: inline-flex; flex-wrap: wrap; background: var(--s2); border: 1px solid var(--linha); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button {
+  border: 0; background: transparent; color: var(--t3); padding: 5px 11px; border-radius: 7px;
+  font: 600 12px var(--f-txt); white-space: nowrap; cursor: pointer;
+}
+.seg button:hover { color: var(--t1); }
+.seg button.on { background: var(--ouro-dim); color: var(--ouro-forte); box-shadow: 0 0 0 1px var(--ouro-linha) inset; }
+.seg button .n { font: 600 11px var(--f-num); opacity: .8; margin-left: 4px; }
+
+.mini-btn {
+  border: 1px solid var(--linha); background: var(--s1); color: var(--t2); border-radius: 8px;
+  padding: 4px 9px; font: 600 11.5px var(--f-txt); cursor: pointer;
+}
+.mini-btn:hover { border-color: var(--ouro-linha); color: var(--ouro-forte); }
+
+/* popover de opções */
+.pop {
+  position: fixed; z-index: 90; width: 320px; max-height: min(460px, 70vh); display: flex; flex-direction: column;
+  background: var(--s-sobe); border: 1px solid var(--linha-2); border-radius: 14px;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, .75); animation: pop-in .16s ease-out;
+}
+@keyframes pop-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+.pop-topo { padding: 10px; border-bottom: 1px solid var(--linha); display: flex; gap: 8px; }
+.pop-topo input {
+  flex: 1; height: 36px; border-radius: 10px; border: 1px solid var(--linha); background: var(--s1);
+  color: var(--t1); padding: 0 12px; font: 500 13px var(--f-txt); outline: 0;
+}
+.pop-topo input:focus { border-color: var(--ouro-linha); }
+.pop-lista { overflow: auto; padding: 6px; flex: 1; }
+.pop-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; text-align: left;
+  padding: 8px 10px; border-radius: 9px; color: var(--t2); font: 500 13px var(--f-txt); cursor: pointer;
+}
+.pop-item:hover { background: var(--luz); color: var(--t1); }
+.pop-item .cx { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--linha-2); display: grid; place-items: center; flex: none; }
+.pop-item.on .cx { background: var(--ouro); border-color: var(--ouro); }
+.pop-item.on .cx::after {
+  content: ""; width: 8px; height: 4px; border-left: 2px solid #1b1303; border-bottom: 2px solid #1b1303;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.pop-item .tx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pop-item .cn { font: 600 11px var(--f-num); color: var(--t3); }
+.pop-item .bolinha { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.pop-rodape {
+  padding: 8px 10px; border-top: 1px solid var(--linha); display: flex; justify-content: space-between;
+  align-items: center; gap: 8px; font: 500 12px var(--f-txt); color: var(--t3);
+}
+.pop-vazio { padding: 22px; text-align: center; color: var(--t3); }
+.pop mark { background: var(--ouro-dim); color: var(--ouro-forte); border-radius: 3px; padding: 0 1px; }
+.campo-data { display: flex; align-items: center; gap: 10px; padding: 6px 8px; font: 600 12px var(--f-txt); color: var(--t3); }
+.campo-data span { width: 30px; }
+.campo-data input {
+  flex: 1; height: 36px; border-radius: 10px; border: 1px solid var(--linha); background: var(--s1);
+  color: var(--t1); padding: 0 10px; font: 500 13px var(--f-num); color-scheme: dark; outline: 0;
+}
+.campo-data input:focus { border-color: var(--ouro-linha); }
+.atalhos-mes { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
 
 /* ---------------- Animações ---------------- */
 @keyframes fade-up {

@@ -21,11 +21,11 @@ type Cartao = {
  * tema escuro continua valendo.
  */
 const CORES: Record<string, { borda: string; fundo: string; texto: string; ponto: string }> = {
-  azul:     { borda: "border-lube-400/35", fundo: "bg-lube-500/10",  texto: "text-lube-200",    ponto: "bg-lube-400" },
-  verde:    { borda: "border-emerald-400/35", fundo: "bg-emerald-500/10", texto: "text-emerald-200", ponto: "bg-emerald-400" },
-  vermelho: { borda: "border-red-400/35",  fundo: "bg-red-500/10",   texto: "text-red-200",     ponto: "bg-red-400" },
-  ambar:    { borda: "border-amber-400/35", fundo: "bg-amber-500/10", texto: "text-amber-200",   ponto: "bg-amber-400" },
-  cinza:    { borda: "border-white/12",    fundo: "bg-white/[.04]",  texto: "text-lube-200/70", ponto: "bg-lube-300/60" },
+  azul:     { borda: "border-lube-400/35", fundo: "bg-lube-500/10",  texto: "text-t2",    ponto: "bg-lube-400" },
+  verde:    { borda: "border-ok/35", fundo: "bg-ok/10", texto: "text-ok", ponto: "bg-ok" },
+  vermelho: { borda: "border-perigo/35",  fundo: "bg-perigo/10",   texto: "text-perigo",     ponto: "bg-perigo" },
+  ambar:    { borda: "border-atencao/35", fundo: "bg-atencao/10", texto: "text-atencao",   ponto: "bg-atencao" },
+  cinza:    { borda: "border-white/12",    fundo: "bg-white/[.04]",  texto: "text-t2", ponto: "bg-lube-300/60" },
 };
 const cor = (nome: string) => CORES[nome] ?? CORES.cinza;
 
@@ -186,7 +186,7 @@ export function Quadro() {
               <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${c.ponto}`} />
-                  <h3 className="text-sm font-bold text-white">{col.nome}</h3>
+                  <h3 className="text-sm font-bold text-t1">{col.nome}</h3>
                   <span className={`text-xs font-semibold ${c.texto}`}>{lista.length}</span>
                 </div>
                 <button
@@ -218,14 +218,14 @@ export function Quadro() {
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      <GripVertical size={14} className="mt-0.5 shrink-0 text-lube-300/40" />
+                      <GripVertical size={14} className="mt-0.5 shrink-0 text-t3" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold leading-snug text-white">{cartao.titulo}</p>
+                        <p className="text-sm font-semibold leading-snug text-t1">{cartao.titulo}</p>
                         {cartao.descricao && (
-                          <p className="mt-1 line-clamp-2 text-xs text-lube-200/55">{cartao.descricao}</p>
+                          <p className="mt-1 line-clamp-2 text-xs text-t3">{cartao.descricao}</p>
                         )}
                         {cartao.responsavel && (
-                          <p className="mt-2 flex items-center gap-1 text-[11px] text-lube-200/50">
+                          <p className="mt-2 flex items-center gap-1 text-[11px] text-t3">
                             <User2 size={11} /> {cartao.responsavel}
                           </p>
                         )}
@@ -247,7 +247,7 @@ export function Quadro() {
                 {!lista.length && (
                   <button
                     onClick={() => abrirNovo(col.id)}
-                    className="rounded-xl border border-dashed border-white/12 px-3 py-6 text-xs text-lube-200/40 transition hover:border-white/25 hover:text-lube-200/70"
+                    className="rounded-xl border border-dashed border-white/12 px-3 py-6 text-xs text-t3 transition hover:border-white/25 hover:text-t2"
                   >
                     Arraste um cartão para cá, ou clique para criar
                   </button>

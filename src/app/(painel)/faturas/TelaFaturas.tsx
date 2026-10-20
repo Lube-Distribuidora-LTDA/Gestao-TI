@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Search, RefreshCw, CalendarPlus, FileCheck2, Send, Printer,
-  AlertTriangle, Filter, Eye, Loader2, MessageCircle, ExternalLink,
+  RefreshCw, CalendarPlus, FileCheck2, Send, Printer, FileSpreadsheet,
+  AlertTriangle, Eye, Loader2, MessageCircle, ExternalLink,
 } from "lucide-react";
 import { Badge, Modal, Vazio, Aviso, useAviso, BotaoAcao } from "@/components/UI";
 import {
@@ -12,6 +12,10 @@ import {
 } from "@/lib/format";
 import { STATUS_FATURA, alertaVencimento, type StatusFatura } from "@/lib/tipos";
 import { DetalheFatura } from "./DetalheFatura";
+import {
+  FaixaFiltros, FiltroMulti, FiltroDatas, Segmento, BuscaFiltro,
+  intervaloDoPeriodo, PERIODOS_RAPIDOS, type PeriodoRapido,
+} from "@/components/Filtros";
 
 export type FaturaLinha = {
   id: string;
@@ -54,40 +58,57 @@ export function TelaFaturas({
   fornecedores,
   categorias,
   competencias,
-  mesesVencimento,
 }: {
   fornecedores: Opcao[];
   categorias: Opcao[];
   competencias: string[];
-  /** "2026-09", "2026-10"... meses que têm alguma fatura vencendo. */
-  mesesVencimento: string[];
 }) {
   const params = useSearchParams();
   const { aviso, mostrar, limpar } = useAviso();
-
-  // "2026-10" — o mês de hoje, para o atalho do seletor de vencimento
-  const mesCorrente = competenciaAtual().slice(0, 7);
 
   const [linhas, setLinhas] = useState<FaturaLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
   const [selecionada, setSelecionada] = useState<string | null>(null);
 
-  const [filtros, setFiltros] = useState({
-    competencia: "",
-    status: "",
-    fornecedor: "",
-    categoria: "",
+  /*
+   * Filtros no padrão dos sistemas: período de vencimento (atalho ou datas livres),
+   * escolha múltipla por dimensão (vazio = todos) e os atalhos de alerta.
+   * "padrao" é o recorte da casa: mês atual + o que ficou atrasado em aberto.
+   */
+  type Periodo = "padrao" | PeriodoRapido | "livre";
+  const [f, setF] = useState({
+    periodo: "padrao" as Periodo,
+    de: "",
+    ate: "",
+    status: [] as string[],
+    fornecedor: [] as string[],
+    categoria: [] as string[],
+    competencia: [] as string[],
     filtro: params.get("filtro") ?? "",
     busca: params.get("busca") ?? "",
-    mesVencimento: "",
   });
+  const muda = (parcial: Partial<typeof f>) => setF((atual) => ({ ...atual, ...parcial }));
+
+  // a mesma query vai para a lista e para o Excel: o arquivo sai igual à tela
+  const qs = useMemo(() => {
+    const q = new URLSearchParams();
+    if (f.periodo === "tudo") q.set("tudo", "1");
+    else if (f.periodo !== "padrao") {
+      const { de, ate } = f.periodo === "livre" ? f : intervaloDoPeriodo(f.periodo);
+      if (de) q.set("de", de);
+      if (ate) q.set("ate", ate);
+    }
+    for (const k of ["status", "fornecedor", "categoria", "competencia"] as const) {
+      if (f[k].length) q.set(k, f[k].join(","));
+    }
+    if (f.filtro) q.set("filtro", f.filtro);
+    if (f.busca) q.set("busca", f.busca);
+    return q.toString();
+  }, [f]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(filtros)) if (v) qs.set(k, v);
-
     try {
       const r = await fetch(`/api/faturas?${qs}`);
       const d = await r.json();
@@ -97,13 +118,61 @@ export function TelaFaturas({
       mostrar("erro", "Falha de conexão ao carregar as faturas.");
     }
     setCarregando(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros]);
+  }, [qs, mostrar]);
 
   useEffect(() => {
-    const t = setTimeout(carregar, filtros.busca ? 380 : 0);
+    const t = setTimeout(carregar, f.busca ? 380 : 0);
     return () => clearTimeout(t);
-  }, [carregar, filtros.busca]);
+  }, [carregar, f.busca]);
+
+  const [exportando, setExportando] = useState(false);
+  async function exportar() {
+    setExportando(true);
+    try {
+      const r = await fetch(`/api/faturas/exportar?${qs}`);
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        mostrar("erro", d.erro ?? "Não foi possível gerar a planilha.");
+        return;
+      }
+      const blob = await r.blob();
+      const nome =
+        r.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "faturas.xlsx";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nome;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      mostrar("erro", "Falha de conexão ao gerar a planilha.");
+    } finally {
+      setExportando(false);
+    }
+  }
+
+  /* ---------- opções e pílulas dos filtros ---------- */
+  const opStatus = Object.entries(STATUS_FATURA).map(([id, v]) => ({ id, nome: v.label }));
+  const opFornecedor = fornecedores.map((o) => ({ id: o.id, nome: o.nome }));
+  const opCategoria = categorias.map((o) => ({ id: o.id, nome: o.nome, cor: o.cor }));
+  const opCompetencia = competencias.map((c) => ({ id: c, nome: competenciaLabel(c) }));
+
+  const nomeDe = (ops: Array<{ id: string; nome: string }>, id: string) =>
+    ops.find((o) => o.id === id)?.nome ?? id;
+  const pilulas = (
+    [
+      ["status", "Situação", opStatus],
+      ["fornecedor", "Fornecedor", opFornecedor],
+      ["categoria", "Categoria", opCategoria],
+      ["competencia", "Competência", opCompetencia],
+    ] as const
+  ).flatMap(([k, rotulo, ops]) =>
+    f[k].map((id) => ({
+      rotulo,
+      texto: nomeDe(ops, id),
+      remover: () => setF((atual) => ({ ...atual, [k]: atual[k].filter((x) => x !== id) })),
+    }))
+  );
 
   async function gerarCompetencia() {
     if (
@@ -159,185 +228,102 @@ export function TelaFaturas({
 
   return (
     <>
-      {/* ---------- barra de filtros ---------- */}
-      <div className="card mb-5 animate-fade-up no-print">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[210px] flex-1">
-            <label className="label">Buscar</label>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-lube-300/50" />
-              <input
-                className="input pl-9"
-                placeholder="Fornecedor ou contrato..."
-                value={filtros.busca}
-                onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="w-[168px]">
-            <label className="label">Mês de vencimento</label>
-            <select
-              className="input"
-              value={filtros.mesVencimento}
-              onChange={(e) => setFiltros({ ...filtros, mesVencimento: e.target.value, filtro: "" })}
+      {/* ---------- faixa de filtros ---------- */}
+      <FaixaFiltros
+        pilulas={pilulas}
+        aoLimpar={() => muda({ status: [], fornecedor: [], categoria: [], competencia: [] })}
+        direita={
+          <span className="flex items-center gap-1.5">
+            <button onClick={carregar} className="btn-ghost !h-[34px] !px-3" title="Atualizar">
+              <RefreshCw size={14} className={carregando ? "animate-spin" : ""} />
+            </button>
+            <BotaoAcao
+              onClick={exportar}
+              carregando={exportando}
+              disabled={linhas.length === 0}
+              className="btn-ghost !h-[34px] !px-3"
+              title={linhas.length ? "Exportar a lista filtrada para Excel" : "Nada para exportar com estes filtros"}
             >
-              <option value="">Mês atual + atrasadas</option>
-              {/* O padrão junta o mês corrente com o que ficou para trás, para
-                  nada atrasado sumir de vista. Quem quer fechar só o mês —
-                  conferir o que vence agora, sem a bagagem — precisava procurar
-                  o mês na lista abaixo; este atalho poupa isso. */}
-              <option value={mesCorrente}>Só {competenciaLabel(mesCorrente + "-01")} (mês atual)</option>
-              {mesesVencimento
-                .filter((m) => m !== mesCorrente)
-                .map((m) => (
-                  <option key={m} value={m}>{competenciaLabel(m + "-01")}</option>
-                ))}
-            </select>
-          </div>
+              {!exportando && <FileSpreadsheet size={14} />}
+              Excel
+            </BotaoAcao>
+            <button onClick={() => window.print()} className="btn-ghost !h-[34px] !px-3" title="Imprimir lista">
+              <Printer size={14} />
+            </button>
+            <BotaoAcao onClick={gerarCompetencia} carregando={gerando} className="btn-primary !h-[34px]">
+              <CalendarPlus size={14} />
+              Abrir mês
+            </BotaoAcao>
+          </span>
+        }
+      >
+        <Segmento
+          valor={f.periodo === "livre" ? null : f.periodo}
+          aoMudar={(v) => muda({ periodo: v })}
+          opcoes={[
+            {
+              v: "padrao" as Periodo,
+              rotulo: "Mês atual + atrasadas",
+              titulo: "O que vence neste mês e o que ficou atrasado em aberto",
+            },
+            ...PERIODOS_RAPIDOS.filter((p) => p.v !== "ano_ant").map((p) => ({ v: p.v as Periodo, rotulo: p.rotulo })),
+          ]}
+        />
+        <FiltroDatas
+          de={f.periodo === "livre" ? f.de : f.periodo === "padrao" || f.periodo === "tudo" ? "" : intervaloDoPeriodo(f.periodo).de}
+          ate={f.periodo === "livre" ? f.ate : f.periodo === "padrao" || f.periodo === "tudo" ? "" : intervaloDoPeriodo(f.periodo).ate}
+          ativo={f.periodo === "livre"}
+          rotuloVazio="Vencimento"
+          aoAplicar={(de, ate) => muda({ periodo: "livre", de, ate })}
+        />
+        <FiltroMulti rotulo="Situação" opcoes={opStatus} selecionados={f.status} aoMudar={(v) => muda({ status: v })} />
+        <FiltroMulti
+          rotulo="Fornecedor"
+          opcoes={opFornecedor}
+          selecionados={f.fornecedor}
+          aoMudar={(v) => muda({ fornecedor: v })}
+        />
+        <FiltroMulti
+          rotulo="Categoria"
+          opcoes={opCategoria}
+          selecionados={f.categoria}
+          aoMudar={(v) => muda({ categoria: v })}
+        />
+        <FiltroMulti
+          rotulo="Competência"
+          opcoes={opCompetencia}
+          selecionados={f.competencia}
+          aoMudar={(v) => muda({ competencia: v })}
+        />
+        <BuscaFiltro valor={f.busca} aoMudar={(v) => muda({ busca: v })} placeholder="Fornecedor ou contrato…" />
+      </FaixaFiltros>
 
-          <div className="w-[150px]">
-            <label className="label">Competência</label>
-            <select
-              className="input"
-              value={filtros.competencia}
-              onChange={(e) => setFiltros({ ...filtros, competencia: e.target.value })}
-            >
-              <option value="">Todas</option>
-              {competencias.map((c) => (
-                <option key={c} value={c}>{competenciaLabel(c)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-[185px]">
-            <label className="label">Situação</label>
-            <select
-              className="input"
-              value={filtros.status}
-              onChange={(e) => setFiltros({ ...filtros, status: e.target.value, filtro: "" })}
-            >
-              <option value="">Todas</option>
-              {Object.entries(STATUS_FATURA).map(([k, v]) => (
-                <option key={k} value={k}>{v.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-[175px]">
-            <label className="label">Fornecedor</label>
-            <select
-              className="input"
-              value={filtros.fornecedor}
-              onChange={(e) => setFiltros({ ...filtros, fornecedor: e.target.value })}
-            >
-              <option value="">Todos</option>
-              {fornecedores.map((f) => (
-                <option key={f.id} value={f.id}>{f.nome}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="w-[175px]">
-            <label className="label">Categoria</label>
-            <select
-              className="input"
-              value={filtros.categoria}
-              onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
-            >
-              <option value="">Todas</option>
-              {categorias.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
-
-          <button onClick={carregar} className="btn-ghost" title="Atualizar">
-            <RefreshCw size={15} className={carregando ? "animate-spin" : ""} />
-          </button>
-          <BotaoAcao onClick={gerarCompetencia} carregando={gerando} className="btn-primary">
-            <CalendarPlus size={15} />
-            Abrir mês
-          </BotaoAcao>
-          <button onClick={() => window.print()} className="btn-ghost" title="Imprimir lista">
-            <Printer size={15} />
-          </button>
-        </div>
-
-        {/* atalhos rápidos */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: "var(--color-border-soft)" }}>
-          <Filter size={13} className="text-lube-300/60" />
-          <Atalho
-            ativo={!filtros.filtro && !filtros.status}
-            onClick={() => setFiltros({ ...filtros, filtro: "", status: "" })}
-          >
-            Todas ({linhas.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.status === "aguardando_documentos"}
-            onClick={() => setFiltros({ ...filtros, status: "aguardando_documentos", filtro: "" })}
-            cor="#c98500"
-          >
-            Aguardando documento ({pendentes.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.filtro === "vencidas"}
-            onClick={() => setFiltros({ ...filtros, filtro: "vencidas", status: "" })}
-            cor="#ee1c25"
-          >
-            Vencidas ({vencidas.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.filtro === "hoje"}
-            onClick={() => setFiltros({ ...filtros, filtro: "hoje", status: "" })}
-            cor="#ee1c25"
-          >
-            Vence hoje ({venceHoje.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.filtro === "urgente"}
-            onClick={() => setFiltros({ ...filtros, filtro: "urgente", status: "" })}
-            cor="#d95926"
-          >
-            Até 2 semanas ({urgentes.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.filtro === "mes"}
-            onClick={() => setFiltros({ ...filtros, filtro: "mes", status: "" })}
-            cor="#c98500"
-          >
-            Vence este mês ({atencao.length + urgentes.length + venceHoje.length})
-          </Atalho>
-          <Atalho
-            ativo={filtros.filtro === "revisao"}
-            onClick={() => setFiltros({ ...filtros, filtro: "revisao", status: "" })}
-            cor="#9085e9"
-          >
-            A conferir ({revisao.length})
-          </Atalho>
-
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            {!filtros.mesVencimento && !filtros.competencia && (
-              <span
-                className="rounded-lg border px-2 py-1 text-[11px] font-semibold text-lube-200/70"
-                style={{ borderColor: "var(--color-border-soft)" }}
-                title="A lista mostra o mês corrente e tudo que ficou atrasado. Use o seletor de mês para ver outro período."
-              >
-                mês atual + atrasadas
-              </span>
-            )}
-            <span>
-              <span className="text-lube-200/55">Total listado: </span>
-              <span className="font-extrabold text-white">{moeda(total)}</span>
-            </span>
-          </div>
-        </div>
+      {/* ---------- atalhos de alerta + total ---------- */}
+      <div className="mb-4 flex flex-wrap items-center gap-3 animate-fade-up no-print">
+        <Segmento
+          valor={f.filtro}
+          aoMudar={(v) => muda({ filtro: v === f.filtro ? "" : v })}
+          opcoes={[
+            { v: "", rotulo: "Todas", n: f.filtro ? undefined : linhas.length },
+            { v: "aguardando", rotulo: "Aguardando documento", n: pendentes.length },
+            { v: "vencidas", rotulo: "Vencidas", n: vencidas.length },
+            { v: "hoje", rotulo: "Vence hoje", n: venceHoje.length },
+            { v: "urgente", rotulo: "Até 2 semanas", n: urgentes.length },
+            { v: "mes", rotulo: "Vence este mês", n: atencao.length + urgentes.length + venceHoje.length },
+            { v: "revisao", rotulo: "A conferir", n: revisao.length },
+          ]}
+        />
+        <span className="ml-auto text-sm">
+          <span className="text-t3">Total listado: </span>
+          <span className="num font-extrabold text-t1">{moeda(total)}</span>
+          <span className="num ml-2 text-xs text-t3">({linhas.length})</span>
+        </span>
       </div>
 
       {/* ---------- tabela ---------- */}
       <div className="table-wrap animate-fade-up" style={{ animationDelay: "80ms" }}>
         {carregando ? (
-          <div className="flex items-center justify-center gap-3 py-16 text-sm text-lube-200/55">
+          <div className="flex items-center justify-center gap-3 py-16 text-sm text-t3">
             <Loader2 size={18} className="animate-spin" />
             Carregando faturas...
           </div>
@@ -376,8 +362,8 @@ export function TelaFaturas({
                           title={f.categoria_nome ?? "Sem categoria"}
                         />
                         <div className="min-w-0">
-                          <div className="font-bold text-white">{f.fornecedor_nome}</div>
-                          <div className="truncate text-xs text-lube-200/55">
+                          <div className="font-bold text-t1">{f.fornecedor_nome}</div>
+                          <div className="truncate text-xs text-t3">
                             {f.conta_descricao}
                             {f.identificador ? ` · ${f.identificador}` : ""}
                           </div>
@@ -385,7 +371,7 @@ export function TelaFaturas({
                       </div>
                     </td>
 
-                    <td className="whitespace-nowrap font-semibold text-lube-100">
+                    <td className="whitespace-nowrap font-semibold text-t1">
                       {competenciaLabel(f.competencia)}
                     </td>
 
@@ -400,7 +386,7 @@ export function TelaFaturas({
                                 "vencimento" ali seria cobrar um prazo de quem
                                 já pagou. */}
                             {f.pagamento_automatico && (
-                              <div className="text-[10px] font-bold uppercase tracking-wide text-sky-300/70">
+                              <div className="text-[10px] font-bold uppercase tracking-wide text-info/70">
                                 débito automático
                               </div>
                             )}
@@ -425,9 +411,9 @@ export function TelaFaturas({
                     </td>
 
                     <td className="whitespace-nowrap text-right">
-                      <div className="font-bold text-white">{moeda(Number(f.valor_efetivo))}</div>
+                      <div className="font-bold text-t1">{moeda(Number(f.valor_efetivo))}</div>
                       {f.valor_real != null && Number(f.valor_real) !== Number(f.valor_previsto) && (
-                        <div className="text-[11px] text-lube-200/50">
+                        <div className="text-[11px] text-t3">
                           previsto {moeda(Number(f.valor_previsto))}
                         </div>
                       )}
@@ -454,7 +440,7 @@ export function TelaFaturas({
                           !f.nota_fiscal_recebida_em &&
                           !f.fatura_recebida_em &&
                           !f.precisa_revisao && (
-                            <span className="text-xs text-lube-200/30">—</span>
+                            <span className="text-xs text-t3">—</span>
                           )}
                         {/*
                           Conta cujo documento chega como link do portal (a
@@ -489,7 +475,7 @@ export function TelaFaturas({
                           {e.label}
                         </Badge>
                         {f.cobrancas_enviadas > 0 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-lube-200/50">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-t3">
                             <Send size={10} />
                             {f.cobrancas_enviadas} cobrança{f.cobrancas_enviadas > 1 ? "s" : ""}
                           </span>
@@ -571,7 +557,7 @@ function BotaoWhatsApp({ fatura }: { fatura: FaturaLinha }) {
     return (
       <span
         title="Cadastre o WhatsApp deste fornecedor na aba Fornecedores"
-        className="text-[10px] font-semibold text-amber-300/80"
+        className="text-[10px] font-semibold text-atencao/80"
       >
         sem WhatsApp
       </span>
@@ -653,32 +639,5 @@ function Selo({ tipo }: { tipo: keyof typeof SELOS }) {
       <Icone size={11} />
       {rotulo}
     </span>
-  );
-}
-
-function Atalho({
-  children,
-  ativo,
-  onClick,
-  cor,
-}: {
-  children: React.ReactNode;
-  ativo: boolean;
-  onClick: () => void;
-  cor?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${
-        ativo ? "text-white" : "text-lube-200/65 hover:text-white"
-      }`}
-      style={{
-        borderColor: ativo ? (cor ?? "#4659e0") : "var(--color-border-soft)",
-        background: ativo ? `${cor ?? "#4659e0"}22` : "transparent",
-      }}
-    >
-      {children}
-    </button>
   );
 }

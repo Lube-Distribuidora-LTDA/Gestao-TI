@@ -48,10 +48,16 @@ export async function GET(req: Request) {
     )
     .order("descricao");
 
-  if (categoria === "sem") q = q.is("categoria_id", null);
-  else if (categoria) q = q.eq("categoria_id", categoria);
+  // listas separadas por vírgula (filtro de escolha múltipla); "sem" = sem categoria
+  const cats = categoria.split(",").filter(Boolean);
+  const comCat = cats.filter((c) => c !== "sem");
+  if (cats.includes("sem") && comCat.length) {
+    q = q.or(`categoria_id.is.null,categoria_id.in.(${comCat.join(",")})`);
+  } else if (cats.includes("sem")) q = q.is("categoria_id", null);
+  else if (comCat.length) q = q.in("categoria_id", comCat);
 
-  if (fornecedor) q = q.eq("fornecedor_id", fornecedor);
+  const forns = fornecedor.split(",").filter(Boolean);
+  if (forns.length) q = q.in("fornecedor_id", forns);
   if (situacao === "ativas") q = q.eq("ativo", true);
   else if (situacao === "inativas") q = q.eq("ativo", false);
 
@@ -67,20 +73,23 @@ export async function GET(req: Request) {
 
   /* Os filtros vão escritos na planilha, com o nome que apareceu na tela. Sem
      isso, um arquivo com 6 de 25 contratos parece a lista inteira. */
-  const nomeDe = async (tabela: string, id: string) => {
-    const { data: r } = await db.from(tabela).select("nome").eq("id", id).maybeSingle();
-    return (r as { nome?: string } | null)?.nome ?? id;
+  const nomeDe = async (tabela: string, ids: string[]) => {
+    if (!ids.length) return "";
+    const { data: r } = await db.from(tabela).select("nome").in("id", ids);
+    return ((r ?? []) as Array<{ nome: string }>).map((x) => x.nome).join(", ");
   };
 
   const filtros: Array<{ rotulo: string; valor: string }> = [];
   if (busca) filtros.push({ rotulo: "Busca", valor: busca });
-  if (categoria) {
+  if (cats.length) {
     filtros.push({
       rotulo: "Categoria",
-      valor: categoria === "sem" ? "Sem categoria" : await nomeDe("categorias_custo", categoria),
+      valor: [await nomeDe("categorias_custo", comCat), cats.includes("sem") ? "Sem categoria" : ""]
+        .filter(Boolean)
+        .join(", "),
     });
   }
-  if (fornecedor) filtros.push({ rotulo: "Fornecedor", valor: await nomeDe("fornecedores", fornecedor) });
+  if (forns.length) filtros.push({ rotulo: "Fornecedor", valor: await nomeDe("fornecedores", forns) });
   filtros.push({
     rotulo: "Situação",
     valor: situacao === "ativas" ? "Ativas" : situacao === "inativas" ? "Inativas" : "Todas",

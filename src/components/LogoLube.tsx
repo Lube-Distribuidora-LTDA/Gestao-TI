@@ -44,10 +44,10 @@ export function MarcaLube({ compacto = false }: { compacto?: boolean }) {
       <LogoLube tamanho={compacto ? 30 : 38} />
       {!compacto && (
         <div className="leading-none">
-          <div className="text-[17px] font-extrabold tracking-tight text-white">
-            LUBE <span className="text-[#ff5a60]">DISTRIBUIDORA</span>
+          <div className="font-display text-[16px] font-extrabold tracking-tight text-[var(--t1)]">
+            LUBE <span className="text-[var(--verm-lt)]">DISTRIBUIDORA</span>
           </div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.22em] text-lube-300/80">
+          <div className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[var(--ouro)]">
             Gestão de TI
           </div>
         </div>

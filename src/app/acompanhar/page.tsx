@@ -40,8 +40,8 @@ export default function BuscarChamadoPage() {
         </div>
 
         <div className="card">
-          <h1 className="text-xl font-extrabold text-white">Acompanhar chamado</h1>
-          <p className="mt-1 text-sm text-lube-200/60">
+          <h1 className="text-xl font-extrabold text-t1">Acompanhar chamado</h1>
+          <p className="mt-1 text-sm text-t3">
             Informe o protocolo e o e-mail usado na abertura.
           </p>
 
@@ -70,7 +70,7 @@ export default function BuscarChamadoPage() {
 
             {erro && (
               <div
-                className="rounded-xl border px-4 py-3 text-sm font-semibold text-red-100"
+                className="rounded-xl border px-4 py-3 text-sm font-semibold text-perigo"
                 style={{ borderColor: "rgba(238,28,37,.45)", background: "rgba(238,28,37,.12)" }}
               >
                 {erro}
@@ -86,7 +86,7 @@ export default function BuscarChamadoPage() {
           <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--color-border-soft)" }}>
             <Link
               href="/abrir-chamado"
-              className="flex items-center justify-center gap-2 text-sm font-semibold text-lube-300 transition hover:text-white"
+              className="flex items-center justify-center gap-2 text-sm font-semibold text-t3 transition hover:text-t1"
             >
               <LifeBuoy size={15} />
               Abrir um novo chamado

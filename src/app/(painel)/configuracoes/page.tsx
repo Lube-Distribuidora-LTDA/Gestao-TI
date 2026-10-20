@@ -115,7 +115,7 @@ export default function ConfiguracoesPage() {
 
   if (carregando) {
     return (
-      <div className="flex items-center justify-center gap-3 py-20 text-sm text-lube-200/55">
+      <div className="flex items-center justify-center gap-3 py-20 text-sm text-t3">
         <Loader2 size={20} className="animate-spin" /> Carregando configurações...
       </div>
     );
@@ -138,7 +138,7 @@ export default function ConfiguracoesPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         {/* ---------- gerais ---------- */}
         <div className="card animate-fade-up">
-          <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+          <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
             Identificação
           </h2>
           <div className="space-y-4">
@@ -151,7 +151,7 @@ export default function ConfiguracoesPage() {
                   onChange={(e) => setConfigs({ ...configs, [k]: e.target.value })}
                 />
                 {descricoes[k] && (
-                  <p className="mt-1 text-[11px] text-lube-200/45">{descricoes[k]}</p>
+                  <p className="mt-1 text-[11px] text-t3">{descricoes[k]}</p>
                 )}
               </div>
             ))}
@@ -166,7 +166,7 @@ export default function ConfiguracoesPage() {
                 value={configs["imap_dias_retroativos"] ?? "7"}
                 onChange={(e) => setConfigs({ ...configs, imap_dias_retroativos: e.target.value })}
               />
-              <p className="mt-1 text-[11px] text-lube-200/45">
+              <p className="mt-1 text-[11px] text-t3">
                 Quantos dias para trás o robô varre a cada execução.
               </p>
             </div>
@@ -175,7 +175,7 @@ export default function ConfiguracoesPage() {
 
         {/* ---------- automações ---------- */}
         <div className="card animate-fade-up" style={{ animationDelay: "80ms" }}>
-          <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+          <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
             Automações
           </h2>
 
@@ -193,9 +193,9 @@ export default function ConfiguracoesPage() {
                   onChange={(e) => setConfigs({ ...configs, [k]: e.target.checked ? "true" : "false" })}
                 />
                 <div>
-                  <div className="text-sm font-bold text-white">{rotulo(k)}</div>
+                  <div className="text-sm font-bold text-t1">{rotulo(k)}</div>
                   {descricoes[k] && (
-                    <p className="mt-0.5 text-xs text-lube-200/55">{descricoes[k]}</p>
+                    <p className="mt-0.5 text-xs text-t3">{descricoes[k]}</p>
                   )}
                 </div>
               </label>
@@ -206,8 +206,8 @@ export default function ConfiguracoesPage() {
             className="mt-4 flex items-start gap-2.5 rounded-xl border px-4 py-3"
             style={{ borderColor: "rgba(57,135,229,.35)", background: "rgba(57,135,229,.08)" }}
           >
-            <Info size={15} className="mt-0.5 shrink-0 text-sky-300" />
-            <p className="text-xs leading-relaxed text-sky-100/85">
+            <Info size={15} className="mt-0.5 shrink-0 text-info" />
+            <p className="text-xs leading-relaxed text-info/85">
               As chaves de conexão (senha do e-mail, banco e segredo do agendador) ficam nas
               variáveis de ambiente, não aqui — assim nenhuma senha trafega pelo navegador nem
               fica gravada no banco.
@@ -219,10 +219,10 @@ export default function ConfiguracoesPage() {
         <div className="card animate-fade-up lg:col-span-2" style={{ animationDelay: "140ms" }}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-lube-300/85">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-t3">
                 Categorias de custo
               </h2>
-              <p className="mt-0.5 text-xs text-lube-200/50">
+              <p className="mt-0.5 text-xs text-t3">
                 Definem as cores e os agrupamentos do dashboard.
               </p>
             </div>
@@ -251,9 +251,9 @@ export default function ConfiguracoesPage() {
                   style={{ background: c.cor }}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold text-white">{c.nome}</div>
+                  <div className="truncate text-sm font-bold text-t1">{c.nome}</div>
                   {c.descricao && (
-                    <div className="truncate text-[11px] text-lube-200/50">{c.descricao}</div>
+                    <div className="truncate text-[11px] text-t3">{c.descricao}</div>
                   )}
                 </div>
                 <div className="flex shrink-0 gap-0.5">
@@ -269,13 +269,13 @@ export default function ConfiguracoesPage() {
                       setEditandoCat(c.id);
                       setModalCat(true);
                     }}
-                    className="rounded-lg p-1.5 text-lube-300 transition hover:bg-white/10 hover:text-white"
+                    className="rounded-lg p-1.5 text-t3 transition hover:bg-white/10 hover:text-t1"
                   >
                     <Pencil size={13} />
                   </button>
                   <button
                     onClick={() => excluirCategoria(c)}
-                    className="rounded-lg p-1.5 text-lube-300/60 transition hover:bg-[#ee1c25]/20 hover:text-red-300"
+                    className="rounded-lg p-1.5 text-t3 transition hover:bg-perigo/20 hover:text-perigo"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -332,7 +332,7 @@ export default function ConfiguracoesPage() {
                 />
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-lube-200/45">
+            <p className="mt-2 text-[11px] text-t3">
               Paleta testada para leitura no tema escuro, inclusive por quem tem daltonismo.
             </p>
           </div>
@@ -347,7 +347,7 @@ export default function ConfiguracoesPage() {
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-lube-100">
+          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-t1">
             <input
               type="checkbox"
               className="h-4 w-4 accent-[#4659e0]"

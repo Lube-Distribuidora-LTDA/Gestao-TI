@@ -99,8 +99,7 @@ export function Shell({
                     ${aberto ? "translate-x-0" : "-translate-x-full"}`}
         style={{
           borderColor: "var(--color-border-soft)",
-          background: "linear-gradient(185deg, rgba(14,23,66,.97), rgba(6,11,34,.99))",
-          backdropFilter: "blur(14px)",
+          background: "linear-gradient(180deg, var(--bg-2), var(--bg))",
         }}
       >
         <div className="flex h-full flex-col">
@@ -110,19 +109,19 @@ export function Shell({
             </Link>
             <button
               onClick={() => setAberto(false)}
-              className="rounded-lg p-1.5 text-lube-300 hover:bg-white/10 lg:hidden"
+              className="rounded-lg p-1.5 text-t3 hover:bg-white/10 lg:hidden"
               aria-label="Fechar menu"
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className="mx-5 h-px bg-gradient-to-r from-transparent via-lube-500/40 to-transparent" />
+          <div className="mx-5 h-px" style={{ background: "var(--linha)" }} />
 
           <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
             {grupos.map((g) => (
               <div key={g.titulo}>
-                <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-lube-300/55">
+                <div className="mb-2 px-3 text-[10.5px] font-bold uppercase tracking-[0.17em] text-[var(--t3)]">
                   {g.titulo}
                 </div>
                 <div className="space-y-1">
@@ -134,33 +133,30 @@ export function Shell({
                         href={href}
                         prefetch
                         onClick={() => setAberto(false)}
-                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold
-                                    transition-all duration-200
+                        className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold
+                                    transition-colors duration-200
                           ${
                             on
-                              ? "text-white"
-                              : "text-lube-200/75 hover:bg-white/[0.06] hover:text-white"
+                              ? "text-[var(--ouro-forte)]"
+                              : "text-[var(--t2)] hover:bg-[var(--luz)] hover:text-[var(--t1)]"
                           }`}
                         style={
-                          on
-                            ? {
-                                background:
-                                  "linear-gradient(100deg, rgba(47,60,196,.55), rgba(47,60,196,.12))",
-                                boxShadow: "inset 0 1px 0 rgba(255,255,255,.08)",
-                              }
-                            : undefined
+                          on ? { background: "linear-gradient(90deg, var(--ouro-dim), transparent)" } : undefined
                         }
                       >
+                        {/* item ativo em ouro, como nos sistemas recentes (Fiscal, Inventário) */}
                         {on && (
-                          <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[#ee1c25]" />
+                          <span
+                            className="absolute -left-3 top-[9px] bottom-[9px] w-1 rounded-r"
+                            style={{ background: "var(--ouro)", boxShadow: "0 0 14px var(--ouro)" }}
+                          />
                         )}
-                        <Icone size={17} className={on ? "text-lube-100" : "text-lube-300/70"} />
+                        <Icone size={18} strokeWidth={1.8} />
                         <span className="flex-1">{rotulo}</span>
                         {!!badge && badge > 0 && (
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${
-                              on ? "bg-white/20 text-white" : "bg-[#ee1c25]/85 text-white"
-                            }`}
+                            className="num rounded-full px-2 py-0.5 text-[10.5px] font-extrabold text-t1"
+                            style={{ background: "var(--verm)" }}
                           >
                             {badge > 99 ? "99+" : badge}
                           </span>
@@ -178,8 +174,8 @@ export function Shell({
                 href="/abrir-chamado"
                 target="_blank"
                 className="flex items-center gap-2.5 rounded-xl border border-dashed px-3 py-3 text-xs font-semibold
-                           text-lube-200/80 transition hover:border-lube-400/60 hover:text-white"
-                style={{ borderColor: "rgba(126,148,255,.25)" }}
+                           text-[var(--t2)] transition hover:border-[var(--ouro-linha)] hover:text-[var(--ouro-forte)]"
+                style={{ borderColor: "var(--linha-2)" }}
               >
                 <ExternalLink size={15} />
                 <span className="flex-1">Portal de chamados</span>
@@ -190,25 +186,32 @@ export function Shell({
 
           {/* usuário */}
           <div className="border-t p-4" style={{ borderColor: "var(--color-border-soft)" }}>
-            <div className="flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-2.5">
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ background: "var(--s1)" }}>
               <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold text-white"
-                style={{ background: "linear-gradient(135deg,#2f3cc4,#16225f)" }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold text-t1"
+                style={{ background: "linear-gradient(135deg, var(--azul), #16225f)" }}
               >
                 {iniciais(usuario.nome)}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold text-white">{usuario.nome}</div>
-                <div className="truncate text-[11px] capitalize text-lube-300/70">{usuario.papel}</div>
+                <div className="truncate text-sm font-bold text-[var(--t1)]">{usuario.nome}</div>
+                <div className="truncate text-[11px] capitalize text-[var(--t3)]">{usuario.papel}</div>
               </div>
               <button
                 onClick={sair}
                 disabled={saindo}
                 title="Sair"
-                className="rounded-lg p-2 text-lube-300/70 transition hover:bg-[#ee1c25]/20 hover:text-red-300 disabled:opacity-50"
+                className="rounded-lg p-2 text-[var(--t3)] transition hover:bg-[var(--perigo-bg)] hover:text-[var(--verm-lt)] disabled:opacity-50"
               >
                 <LogOut size={16} />
               </button>
+            </div>
+            <div className="mt-3 flex items-center px-1 text-[11.5px] text-[var(--t3)]">
+              <span
+                className="mr-2 inline-block h-[7px] w-[7px] rounded-full"
+                style={{ background: "var(--ok)", boxShadow: "0 0 10px var(--ok)" }}
+              />
+              versão <span className="num ml-1 text-[var(--t2)]">{process.env.NEXT_PUBLIC_VERSAO}</span>
             </div>
           </div>
         </div>
@@ -228,19 +231,19 @@ export function Shell({
           className="sticky top-0 z-30 flex items-center gap-3 border-b px-4 py-3 lg:hidden"
           style={{
             borderColor: "var(--color-border-soft)",
-            background: "rgba(6,11,34,.92)",
+            background: "rgba(5,11,28,.92)",
             backdropFilter: "blur(12px)",
           }}
         >
           <button
             onClick={() => setAberto(true)}
-            className="rounded-lg p-2 text-lube-200 hover:bg-white/10"
+            className="rounded-lg p-2 text-t2 hover:bg-white/10"
             aria-label="Abrir menu"
           >
             <Menu size={20} />
           </button>
           <MarcaLube compacto />
-          <span className="text-sm font-bold text-white">Gestão de TI</span>
+          <span className="font-display text-sm font-bold text-[var(--t1)]">Gestão de TI</span>
         </header>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
