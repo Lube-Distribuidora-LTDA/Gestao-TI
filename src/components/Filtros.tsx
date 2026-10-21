@@ -319,10 +319,12 @@ export function FiltroDatas({
   const [d1, setD1] = useState(de);
   const [d2, setD2] = useState(ate);
 
-  // os 6 últimos meses (contando o atual) como atalho dentro da lista
+  // os 6 últimos meses (contando o atual) como atalho dentro da lista. A partir do dia 15 entra
+  // também o mês seguinte, na frente: é quando as faturas dele começam a chegar (Júlio, 2026-10-21)
   const hoje = new Date();
-  const meses = Array.from({ length: 6 }, (_, i) => {
-    const ini = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+  const comProximo = hoje.getDate() >= 15 ? 1 : 0;
+  const meses = Array.from({ length: 6 + comProximo }, (_, i) => {
+    const ini = new Date(hoje.getFullYear(), hoje.getMonth() + comProximo - i, 1);
     const fim = new Date(ini.getFullYear(), ini.getMonth() + 1, 0);
     return { rotulo: `${MESES[ini.getMonth()]}/${String(ini.getFullYear()).slice(2)}`, de: isoDia(ini), ate: isoDia(fim) };
   });
