@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { email, senha } = await req.json();
+    const { email, senha, emQuadro } = await req.json();
 
     if (!email || !senha) {
       return NextResponse.json({ erro: "Informe e-mail e senha." }, { status: 400 });
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     });
 
     const res = NextResponse.json({ ok: true });
-    res.cookies.set({ ...opcoesCookie(), value: token });
+    res.cookies.set({ ...opcoesCookie(emQuadro === true), value: token });
     return res;
   } catch (e) {
     return NextResponse.json(

@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["imapflow", "mailparser", "nodemailer", "pdf-parse"],
   eslint: { ignoreDuringBuilds: true },
   env: { NEXT_PUBLIC_VERSAO: `${dia} (${commit})` },
+  // abre dentro do Painel Lube; nenhum outro site consegue mostrar o Gestão TI
+  async headers() {
+    return [{
+      source: "/:path*",
+      headers: [{
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self' https://painel-lube-distribuidora.vercel.app",
+      }],
+    }];
+  },
 };
 
 export default nextConfig;

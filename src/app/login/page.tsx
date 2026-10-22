@@ -32,7 +32,8 @@ function Formulario() {
       const r = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, senha }),
+        // dentro do Painel Lube (iframe) o cookie da sessão precisa ser particionado
+        body: JSON.stringify({ email, senha, emQuadro: window.self !== window.top }),
       });
       const d = await r.json();
 

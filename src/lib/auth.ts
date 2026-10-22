@@ -85,12 +85,21 @@ export async function verificarSessao(token: string | undefined | null): Promise
 
 export const COOKIE_SESSAO = COOKIE;
 
-export function opcoesCookie() {
+/**
+ * Aberto dentro do Painel Lube (iframe), o Gestão TI é "site de terceiro" e lá um cookie
+ * SameSite=Lax não volta. Nesse caso (a tela de login avisa com emQuadro) o cookie sai
+ * SameSite=None + Partitioned: fica guardado só na partição do portal, ou seja, só vale
+ * dentro do painel. Aberto direto segue Lax como sempre. (2026-10-22)
+ */
+export function opcoesCookie(emQuadro = false) {
+  const secure = process.env.NODE_ENV === "production";
+  const quadro = emQuadro && secure;   // None/Partitioned exigem Secure
   return {
     name: COOKIE,
     httpOnly: true as const,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    sameSite: quadro ? ("none" as const) : ("lax" as const),
+    partitioned: quadro,
+    secure,
     path: "/",
     maxAge: DURACAO_HORAS * 3600,
   };

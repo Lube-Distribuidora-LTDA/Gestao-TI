@@ -85,7 +85,11 @@ export function Shell({
 
   async function sair() {
     setSaindo(true);
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emQuadro: window.self !== window.top }),
+    });
     router.push("/login");
     router.refresh();
   }
