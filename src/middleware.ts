@@ -31,8 +31,12 @@ const FECHADO = {
   rotas: [] as string[],
 };
 
-/** Identidade do agendador da Vercel nos eventos da Sentinela (sem "|" e sem e-mail de pessoa). */
-const ROBO_AGENDADOR = { email: "robo do gestao ti (agendador da vercel)", origem: "sessao_app" as const };
+/**
+ * Identidade do agendador da Vercel nos eventos da Sentinela (sem "|" e sem e-mail de pessoa).
+ * maquina: true (guarda 1.3.0): o agendador sai de um IP da Amazon diferente a cada dia, então a
+ * regra de rede da Lube o deixa passar só porque este app já conferiu o CRON_SECRET (abaixo).
+ */
+const ROBO_AGENDADOR = { email: "robo do gestao ti (agendador da vercel)", origem: "sessao_app" as const, maquina: true };
 
 /**
  * O agendador da Vercel manda "Authorization: Bearer <CRON_SECRET>" nos jobs de vercel.json.
