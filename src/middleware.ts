@@ -15,6 +15,7 @@ const PUBLICAS = [
   "/api/auth",
   "/api/setup",
   "/api/chamados/publico",
+  "/api/conhecimento/publico", // artigos publicados, mostrados no portal de chamados
   "/api/cron",       // protegida por CRON_SECRET, não por sessão
 ];
 

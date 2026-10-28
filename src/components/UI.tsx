@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X, Inbox, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
 
 /* ---------------- Cabeçalho de página ---------------- */
@@ -224,7 +225,13 @@ export function Modal({
 
   if (!aberto) return null;
 
-  return (
+  /*
+   * Vai por portal para o <body>. Os cards animam com transform (animate-fade-up, que fica
+   * aplicado depois da animação), e um position:fixed dentro de um ancestral com transform
+   * se posiciona pelo ancestral, não pela janela: um modal aberto de dentro de um card
+   * apareceria preso nele.
+   */
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto p-4 sm:items-center">
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={aoFechar} />
       <div
@@ -253,7 +260,8 @@ export function Modal({
         </div>
         <div className="px-6 py-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

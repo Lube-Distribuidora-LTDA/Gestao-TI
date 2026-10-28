@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { MarcaLube } from "@/components/LogoLube";
 import { CATEGORIAS_CHAMADO, SETORES, PRIORIDADE, type PrioridadeChamado } from "@/lib/tipos";
+import { useArtigosPublicos, BuscaConhecimento, SugestoesNoFormulario } from "./Conhecimento";
 
 const VAZIO = {
   solicitante_nome: "",
@@ -27,6 +28,9 @@ export default function AbrirChamadoPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<{ protocolo: string; token: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
+  // base de conhecimento da TI (aba do Kanban): artigos publicados, sugeridos antes do chamado
+  const artigos = useArtigosPublicos();
+  const [resolvidoPorArtigo, setResolvidoPorArtigo] = useState(false);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -159,7 +163,17 @@ export default function AbrirChamadoPage() {
         </div>
       </div>
 
+      <BuscaConhecimento artigos={artigos} />
+
       <form onSubmit={enviar} className="card animate-fade-up" style={{ animationDelay: "80ms" }}>
+        {resolvidoPorArtigo && (
+          <div
+            className="mb-5 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-semibold text-ok"
+            style={{ borderColor: "rgba(52,232,158,.35)", background: "var(--ok-bg)" }}
+          >
+            <CheckCircle2 size={17} /> Que bom que resolveu! O chamado não foi aberto.
+          </div>
+        )}
         {/* quem é você */}
         <h2 className="mb-4 text-sm font-extrabold uppercase tracking-wider text-t3">
           Seus dados
@@ -258,6 +272,17 @@ export default function AbrirChamadoPage() {
               onChange={(e) => setForm({ ...form, titulo: e.target.value })}
             />
           </div>
+
+          <SugestoesNoFormulario
+            artigos={artigos}
+            texto={`${form.titulo} ${form.descricao}`}
+            categoria={form.categoria}
+            aoResolver={() => {
+              setForm({ ...VAZIO });
+              setResolvidoPorArtigo(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
 
           <div>
             <label className="label">Descrição detalhada *</label>

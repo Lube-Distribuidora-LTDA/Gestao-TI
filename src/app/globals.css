@@ -446,12 +446,12 @@ h1, h2, h3, h4 { font-family: var(--f-tit); }
 .pilula button:hover { background: var(--verm); color: #fff; }
 
 .seg { display: inline-flex; flex-wrap: wrap; background: var(--s2); border: 1px solid var(--linha); border-radius: 10px; padding: 3px; gap: 2px; }
-.seg button {
+.seg button, .seg a {
   border: 0; background: transparent; color: var(--t3); padding: 5px 11px; border-radius: 7px;
   font: 600 12px var(--f-txt); white-space: nowrap; cursor: pointer;
 }
-.seg button:hover { color: var(--t1); }
-.seg button.on { background: var(--ouro-dim); color: var(--ouro-forte); box-shadow: 0 0 0 1px var(--ouro-linha) inset; }
+.seg button:hover, .seg a:hover { color: var(--t1); }
+.seg button.on, .seg a.on { background: var(--ouro-dim); color: var(--ouro-forte); box-shadow: 0 0 0 1px var(--ouro-linha) inset; }
 .seg button .n { font: 600 11px var(--f-num); opacity: .8; margin-left: 4px; }
 
 .mini-btn {
