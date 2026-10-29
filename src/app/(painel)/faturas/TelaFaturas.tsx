@@ -50,6 +50,10 @@ export type FaturaLinha = {
   pagamento_automatico: boolean;
   documento_via_link: boolean;
   pago_em: string | null;
+  /** Lançamento da nota no WinThor, gravado pelo agente da Rotina 750. */
+  winthor_lancado_em?: string | null;
+  winthor_valor?: number | null;
+  winthor_recnum?: number | null;
 };
 
 type Opcao = { id: string; nome: string; cor?: string };

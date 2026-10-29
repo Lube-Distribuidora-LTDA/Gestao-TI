@@ -249,6 +249,14 @@ export function DetalheFatura({
           </div>
           <div className="text-right">
             <Badge classe={est.classe} ponto={est.ponto}>{est.label}</Badge>
+            {fatura.winthor_lancado_em && (
+              <div className="mt-1.5 text-[11px] text-t3" title={`Lançamento ${fatura.winthor_recnum} na PCLANC`}>
+                lançada em <span className="num text-t2">{data(fatura.winthor_lancado_em)}</span>
+                {fatura.winthor_valor != null && (
+                  <> · <span className="num text-t2">{moeda(Number(fatura.winthor_valor))}</span></>
+                )}
+              </div>
+            )}
             <div className="mt-2 text-2xl font-extrabold text-t1">
               {moeda(Number(fatura.valor_efetivo))}
             </div>
@@ -316,7 +324,9 @@ export function DetalheFatura({
           </BotaoAcao>
         )}
 
-        {fatura.status !== "entregue_contabilidade" && fatura.status !== "paga" && (
+        {fatura.status !== "entregue_contabilidade" &&
+          fatura.status !== "lancada_winthor" &&
+          fatura.status !== "paga" && (
           <BotaoAcao
             onClick={() =>
               salvar(

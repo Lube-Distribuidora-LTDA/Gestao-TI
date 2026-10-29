@@ -25,6 +25,7 @@ const ROTULO_TIPO: Record<string, string> = {
   leitura_email: "Leitura do webmail",
   cobranca: "Cobrança de documentos",
   geracao_faturas: "Abertura de competências",
+  winthor_750: "Lançamentos no WinThor (Rotina 750)",
 };
 
 export default function RoboPage() {
@@ -216,7 +217,15 @@ export default function RoboPage() {
                           <Clock size={10.5} />
                           {dataHora(e.iniciado_em)}
                         </span>
-                        {e.emails_lidos > 0 && (
+                        {e.tipo === "winthor_750" && (
+                          <span>
+                            {e.detalhes?.lidos ?? 0} lançamento(s) lido(s) no WinThor
+                            {e.documentos_vinculados > 0 && (
+                              <span className="text-ok/80"> · {e.documentos_vinculados} fatura(s) marcada(s)</span>
+                            )}
+                          </span>
+                        )}
+                        {e.tipo !== "winthor_750" && e.emails_lidos > 0 && (
                           <span>
                             {e.emails_lidos} e-mail(s) na janela
                             {e.detalhes?.baixados != null && ` · ${e.detalhes.baixados} baixado(s)`}
@@ -227,7 +236,7 @@ export default function RoboPage() {
                             {e.detalhes?.cortados} sem ler
                           </span>
                         )}
-                        {e.documentos_vinculados > 0 && (
+                        {e.tipo !== "winthor_750" && e.documentos_vinculados > 0 && (
                           <span className="inline-flex items-center gap-1 text-ok/80">
                             <FileCheck2 size={10.5} />
                             {e.documentos_vinculados} documento(s)

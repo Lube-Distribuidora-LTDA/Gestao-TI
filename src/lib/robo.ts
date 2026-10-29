@@ -931,7 +931,10 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         // qualquer documento válido já tira a competência da fila de cobrança
         patch.status = "documentos_recebidos";
       }
-      if (nfOk && fatOk && recOk && atual?.status !== "paga" && atual?.status !== "entregue_contabilidade") {
+      // fatura já encerrada (entregue ou lançada no WinThor) não volta para "documentos recebidos"
+      // quando o fornecedor reenvia o documento
+      const encerrada = ["paga", "entregue_contabilidade", "lancada_winthor"].includes(atual?.status ?? "");
+      if (nfOk && fatOk && recOk && !encerrada) {
         patch.status = "documentos_recebidos";
       }
 
@@ -1041,7 +1044,7 @@ export async function executarCobrancas(opts?: {
       .from("vw_faturas_detalhe")
       .select("*")
       // nunca cobrar o que já foi assinado e entregue — nem pelo botão manual
-      .not("status", "in", "(paga,entregue_contabilidade,cancelada)")
+      .not("status", "in", "(paga,entregue_contabilidade,lancada_winthor,cancelada)")
       /*
        * Fornecedor de canal WhatsApp fica de fora, sempre. Mandar e-mail para
        * quem só responde no WhatsApp gera o pior resultado possível: a

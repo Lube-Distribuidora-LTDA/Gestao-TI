@@ -25,3 +25,9 @@ _correcao/
 
 # documentos baixados pela busca em outra caixa — nunca versionar
 documentos-encontrados/
+
+# agente da Rotina 750: credenciais e logs ficam só na máquina
+etl/ENV
+etl/*.log
+etl/_teste_agendador.txt
+etl/__pycache__/

@@ -105,7 +105,8 @@ export async function montarResumo(horasDeDocumentos = 24): Promise<Resumo> {
     vencimento: String(f.vencimento ?? ""),
     valor: Number(f.valor_efetivo ?? 0),
     dias: diasAte(String(f.vencimento ?? hoje)),
-    entregue: f.status === "entregue_contabilidade",
+    // lançada no WinThor vem depois de entregue: para o resumo, as duas estão com a contabilidade
+    entregue: f.status === "entregue_contabilidade" || f.status === "lancada_winthor",
     falta_nota: Boolean(f.exige_nota_fiscal) && !f.nota_fiscal_recebida_em,
     falta_fatura: Boolean(f.exige_fatura) && !f.fatura_recebida_em,
   });

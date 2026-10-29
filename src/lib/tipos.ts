@@ -6,6 +6,11 @@ export type StatusFatura =
   | "em_aprovacao"
   /** Conferida, assinada e entregue à contabilidade — o fim do fluxo da TI. */
   | "entregue_contabilidade"
+  /**
+   * A nota foi lançada no contas a pagar do WinThor (o Júlio acompanha pela Rotina 750).
+   * Quem marca é o agente etl/sync_winthor_750.py, não a tela.
+   */
+  | "lancada_winthor"
   /** Legado: virou "entregue_contabilidade". A TI não paga, ela entrega. */
   | "paga"
   | "cancelada";
@@ -46,6 +51,11 @@ export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
     label: "Assinado e entregue",
     classe: "border-ok/35 bg-ok/12 text-ok",
     ponto: "bg-ok",
+  },
+  lancada_winthor: {
+    label: "Lançada no WinThor",
+    classe: "border-lube-400/40 bg-lube-500/12 text-lube-300",
+    ponto: "bg-lube-400",
   },
   paga: {
     label: "Assinado e entregue",
@@ -306,7 +316,12 @@ export function alertaVencimento(
     };
   }
 
-  if (status === "paga" || status === "entregue_contabilidade" || status === "cancelada") {
+  if (
+    status === "paga" ||
+    status === "entregue_contabilidade" ||
+    status === "lancada_winthor" ||
+    status === "cancelada"
+  ) {
     return {
       nivel: "quitada", rotulo: "", descricao: "Sem pendência de pagamento.",
       classe: "", cor: "#64748b", peso: 0, pulsar: false,
