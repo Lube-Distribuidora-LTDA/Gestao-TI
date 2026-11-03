@@ -1,9 +1,10 @@
 """Agente da Rotina 750: marca no GESTÃO TI as faturas cuja nota já foi lançada no WinThor.
 
 O que faz, a cada rodada:
-  1. pega no GESTÃO TI os CNPJs dos fornecedores ativos;
-  2. lê no WinThor (PCLANC, contas a pagar) os lançamentos desses CNPJs dos últimos
-     90 dias — é a tabela que a Rotina 750 consulta;
+  1. pega no GESTÃO TI os CNPJs e os códigos do WinThor (cod_fornecedor_winthor) dos
+     fornecedores ativos;
+  2. lê no WinThor (PCLANC, contas a pagar) os lançamentos desses CNPJs ou códigos dos
+     últimos 90 dias — é a tabela que a Rotina 750 consulta;
   3. manda tudo para a função registrar_lancamentos_winthor() do banco, que acha a
      fatura de cada lançamento (número da nota; ou vencimento + valor) e a marca
      como "Lançada no WinThor";
@@ -36,11 +37,11 @@ DIAS = 90
 # Lançamento cancelado, valor zerado/negativo e linha de estorno de borderô ficam de fora:
 # não são a nota da fatura.
 SQL_LANCAMENTOS = """
- select l.recnum, regexp_replace(f.cgc, '[^0-9]', '') cnpj, l.numnota, l.dtlanc, l.dtvenc, l.valor,
+ select l.recnum, regexp_replace(f.cgc, '[^0-9]', '') cnpj, l.codfornec, l.numnota, l.dtlanc, l.dtvenc, l.valor,
         f.fornecedor, substr(l.historico, 1, 80) historico
    from pclanc l
    join pcfornec f on f.codfornec = l.codfornec
-  where regexp_replace(f.cgc, '[^0-9]', '') in ({marcadores})
+  where (regexp_replace(f.cgc, '[^0-9]', '') in ({marcadores}) or l.codfornec in ({codigos}))
     and l.dtlanc >= trunc(sysdate) - :dias
     and l.valor > 0
     and l.dtcancel is null
@@ -109,15 +110,18 @@ class GestaoTI:
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"Supabase {metodo} {caminho}: {e.code} {e.read().decode('utf-8', 'replace')[:300]}")
 
-    def cnpjs_dos_fornecedores(self) -> list:
-        linhas = self._chamar("GET", "/fornecedores?select=nome,cnpj&ativo=eq.true&cnpj=not.is.null")
-        cnpjs = set()
+    def identificacao_dos_fornecedores(self) -> tuple[list, list]:
+        """CNPJs e códigos do WinThor dos fornecedores ativos (cada campo pode ter mais de um, por vírgula)."""
+        linhas = self._chamar("GET", "/fornecedores?select=nome,cnpj,cod_fornecedor_winthor&ativo=eq.true")
+        cnpjs, codigos = set(), set()
         for l in linhas or []:
-            # o campo pode ter mais de um CNPJ, separados por vírgula (Mais Dados / INTELI+)
             for parte in re.split(r"[^0-9]+", re.sub(r"[.\-/]", "", l["cnpj"] or "")):
                 if len(parte) == 14:
                     cnpjs.add(parte)
-        return sorted(cnpjs)
+            for parte in re.split(r"[^0-9]+", l.get("cod_fornecedor_winthor") or ""):
+                if parte:
+                    codigos.add(int(parte))
+        return sorted(cnpjs), sorted(codigos)
 
     def abrir_rodada(self) -> str:
         r = self._chamar("POST", "/robo_execucoes", {"tipo": "winthor_750"}, {"Prefer": "return=representation"})
@@ -132,20 +136,25 @@ class GestaoTI:
 
 
 # ---------------------------------------------------------------- WinThor
-def ler_lancamentos(cfg: dict, cnpjs: list) -> list:
+def ler_lancamentos(cfg: dict, cnpjs: list, codigos: list) -> list:
     import oracledb  # só aqui: o --simular de quem não tem a biblioteca ainda mostra o erro claro
 
     con = oracledb.connect(user=cfg["ORACLE_USER"], password=cfg["ORACLE_PASSWORD"],
                            dsn=f'{cfg["ORACLE_HOST"]}:{cfg.get("ORACLE_PORT", "1521")}/{cfg["ORACLE_SERVICE_NAME"]}')
     try:
         cur = con.cursor()
-        binds = {f"c{i}": c for i, c in enumerate(cnpjs)}
-        cur.execute(SQL_LANCAMENTOS.format(marcadores=",".join(":" + k for k in binds)), {**binds, "dias": DIAS})
+        # lista vazia não vale no IN do Oracle: um valor que nunca casa no lugar
+        binds = {f"c{i}": c for i, c in enumerate(cnpjs or ["-"])}
+        bcod = {f"k{i}": c for i, c in enumerate(codigos or [-1])}
+        cur.execute(SQL_LANCAMENTOS.format(marcadores=",".join(":" + k for k in binds),
+                                           codigos=",".join(":" + k for k in bcod)),
+                    {**binds, **bcod, "dias": DIAS})
         saida = []
-        for recnum, cnpj, numnota, dtlanc, dtvenc, valor, fornecedor, historico in cur:
+        for recnum, cnpj, codfornec, numnota, dtlanc, dtvenc, valor, fornecedor, historico in cur:
             saida.append({
                 "recnum": int(recnum),
                 "cnpj": cnpj,
+                "codfornec": str(codfornec),
                 "numnota": "" if numnota is None else str(numnota),
                 "dtlanc": dtlanc.date().isoformat() if dtlanc else None,
                 "dtvenc": dtvenc.date().isoformat() if dtvenc else None,
@@ -167,9 +176,9 @@ def main() -> int:
 
     rodada = None if simular else ti.abrir_rodada()
     try:
-        cnpjs = ti.cnpjs_dos_fornecedores()
-        log.info("%d CNPJ(s) de fornecedor no GESTÃO TI", len(cnpjs))
-        lancamentos = ler_lancamentos(cfg, cnpjs) if cnpjs else []
+        cnpjs, codigos = ti.identificacao_dos_fornecedores()
+        log.info("%d CNPJ(s) e %d código(s) de fornecedor no GESTÃO TI", len(cnpjs), len(codigos))
+        lancamentos = ler_lancamentos(cfg, cnpjs, codigos) if (cnpjs or codigos) else []
         log.info("%d lançamento(s) no WinThor nos últimos %d dias", len(lancamentos), DIAS)
 
         if simular:
@@ -180,7 +189,7 @@ def main() -> int:
             return 0
 
         por_recnum = {l["recnum"]: l for l in lancamentos}
-        envio = [{k: l[k] for k in ("recnum", "cnpj", "numnota", "dtlanc", "dtvenc", "valor")} for l in lancamentos]
+        envio = [{k: l[k] for k in ("recnum", "cnpj", "codfornec", "numnota", "dtlanc", "dtvenc", "valor")} for l in lancamentos]
         resultado = ti.registrar(envio) if envio else []
 
         lancadas = [r for r in resultado if r["resultado"] == "lancada"]

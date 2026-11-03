@@ -22,6 +22,8 @@ type Fornecedor = {
   ativo: boolean;
   canal_cobranca: "email" | "whatsapp";
   whatsapp: string | null;
+  /** Código no WinThor (PCFORNEC.CODFORNEC), o que a Rotina 750 procura; mais de um separados por vírgula. */
+  cod_fornecedor_winthor: string | null;
 };
 
 const VAZIO = {
@@ -29,7 +31,20 @@ const VAZIO = {
   emails_remetentes: "", telefone: "", contato_nome: "", site: "",
   observacoes: "", ativo: true,
   canal_cobranca: "email" as "email" | "whatsapp", whatsapp: "",
+  cod_fornecedor_winthor: "",
 };
+
+/*
+ * CNPJ e código do WinThor podem ser mais de um (Mais Dados / INTELI+ são duas empresas no WinThor):
+ * cada um fica só com os dígitos e eles ficam separados por vírgula. Antes o CNPJ perdia tudo o que não
+ * era dígito, e dois CNPJs viravam um número só de 28 dígitos, que nenhum lançamento acha.
+ */
+const soDigitosPorItem = (v: string) =>
+  v
+    .split(/[,;\n]+/)
+    .map((s) => s.replace(/\D/g, ""))
+    .filter(Boolean)
+    .join(", ");
 
 export default function FornecedoresPage() {
   const { aviso, mostrar, limpar } = useAviso();
@@ -76,6 +91,7 @@ export default function FornecedoresPage() {
       ativo: f.ativo,
       canal_cobranca: f.canal_cobranca ?? "email",
       whatsapp: f.whatsapp ?? "",
+      cod_fornecedor_winthor: f.cod_fornecedor_winthor ?? "",
     });
     setEditando(f.id);
     setModal(true);
@@ -91,7 +107,8 @@ export default function FornecedoresPage() {
         .split(/[,;\n]/)
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean),
-      cnpj: form.cnpj.replace(/\D/g, "") || null,
+      cnpj: soDigitosPorItem(form.cnpj) || null,
+      cod_fornecedor_winthor: soDigitosPorItem(form.cod_fornecedor_winthor) || null,
       /* Guardado só com dígitos: é assim que o link wa.me espera o número,
          e assim "(27) 99999-9999" e "27999999999" viram a mesma coisa. */
       whatsapp: form.whatsapp.replace(/\D/g, "") || null,
@@ -242,7 +259,16 @@ export default function FornecedoresPage() {
                   {f.razao_social && (
                     <p className="truncate text-xs text-t3">{f.razao_social}</p>
                   )}
-                  {f.cnpj && <p className="mt-0.5 text-xs text-t3">{cnpjFmt(f.cnpj)}</p>}
+                  {f.cnpj && (
+                    <p className="mt-0.5 text-xs text-t3">
+                      {f.cnpj.split(/,\s*/).map(cnpjFmt).join(" · ")}
+                    </p>
+                  )}
+                  {f.cod_fornecedor_winthor && (
+                    <p className="mt-0.5 text-xs text-t3" title="Código do fornecedor no WinThor (Rotina 750)">
+                      Cód. fornecedor <span className="num font-semibold text-t2">{f.cod_fornecedor_winthor}</span>
+                    </p>
+                  )}
                 </div>
                 {!f.ativo && (
                   <Badge classe="border-t3/30 bg-t3/10 text-t3">Inativo</Badge>
@@ -339,6 +365,17 @@ export default function FornecedoresPage() {
                 value={form.cnpj}
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
               />
+            </div>
+            <div>
+              <label className="label">Cód. fornecedor (WinThor)</label>
+              <input
+                className="input num"
+                inputMode="numeric"
+                placeholder="ex.: 18265"
+                value={form.cod_fornecedor_winthor}
+                onChange={(e) => setForm({ ...form, cod_fornecedor_winthor: e.target.value })}
+              />
+              <p className="mt-1 text-[11px] text-t3">O código da Rotina 750. Mais de um, separe por vírgula.</p>
             </div>
           </div>
 

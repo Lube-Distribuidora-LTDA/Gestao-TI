@@ -18,10 +18,10 @@ export const TABELAS: Record<string, ConfigTabela> = {
     colunas: [
       "nome", "razao_social", "cnpj", "email_cobranca", "emails_remetentes",
       "telefone", "contato_nome", "site", "observacoes", "ativo",
-      "canal_cobranca", "whatsapp",
+      "canal_cobranca", "whatsapp", "cod_fornecedor_winthor",
     ],
     ordem: { coluna: "nome", asc: true },
-    busca: ["nome", "razao_social", "cnpj", "email_cobranca"],
+    busca: ["nome", "razao_social", "cnpj", "email_cobranca", "cod_fornecedor_winthor"],
   },
 
   contas: {
