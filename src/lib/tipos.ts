@@ -31,6 +31,13 @@ export type StatusAtivo = "em_uso" | "estoque" | "manutencao" | "descartado";
 
 type Estilo = { label: string; classe: string; ponto: string };
 
+/*
+ * Ordem do fluxo, e é nesta ordem que os status aparecem nas listas e nos filtros: âmbar (falta
+ * documento) → azul (chegou) → violeta (conferindo) → verde (assinado e entregue) → ouro (lançada no
+ * WinThor, o fim). O último é o único selo cheio, com o ouro do painel (.badge-premium no
+ * globals.css): o olho acha de longe o que já terminou (pedido do Júlio, 2026-11-03).
+ * "paga" é legado e mostra o mesmo que "entregue"; "cancelada" fica cinza, fora do fluxo.
+ */
 export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
   aguardando_documentos: {
     label: "Aguardando documentos",
@@ -52,11 +59,6 @@ export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
     classe: "border-ok/35 bg-ok/12 text-ok",
     ponto: "bg-ok",
   },
-  lancada_winthor: {
-    label: "Lançada no WinThor",
-    classe: "border-lube-400/40 bg-lube-500/12 text-lube-300",
-    ponto: "bg-lube-400",
-  },
   paga: {
     label: "Assinado e entregue",
     classe: "border-ok/35 bg-ok/12 text-ok",
@@ -66,6 +68,11 @@ export const STATUS_FATURA: Record<StatusFatura, Estilo> = {
     label: "Cancelada",
     classe: "border-t3/30 bg-t3/10 text-t3",
     ponto: "bg-t3",
+  },
+  lancada_winthor: {
+    label: "Lançada no WinThor",
+    classe: "badge-premium",
+    ponto: "bg-[#1b1303]",
   },
 };
 

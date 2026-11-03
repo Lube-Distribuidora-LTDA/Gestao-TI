@@ -331,6 +331,34 @@ h1, h2, h3, h4 { font-family: var(--f-tit); }
     white-space: nowrap;
   }
 
+  /* "Lançada no WinThor", o fim do fluxo da fatura (pedido do Júlio, 2026-11-03): um selo de ouro
+     sólido, com o reflexo passando de tempos em tempos. Os outros status são translúcidos; este é o
+     único cheio, para o olho achar de longe o que já terminou. */
+  .badge-premium {
+    position: relative;
+    overflow: hidden;
+    color: #1b1303;
+    border-color: rgba(247, 227, 172, .9);
+    background: linear-gradient(135deg, #f7e3ac 0%, var(--ouro) 45%, #c9a24f 100%);
+    box-shadow: 0 6px 18px -8px rgba(233, 200, 119, .75), inset 0 1px 0 rgba(255, 255, 255, .5);
+  }
+  .badge-premium::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .55) 45%, transparent 60%);
+    transform: translateX(-130%);
+    animation: reflexo-selo 4.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes reflexo-selo {
+    0%, 65% { transform: translateX(-130%); }
+    100%    { transform: translateX(130%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .badge-premium::after { display: none; }
+  }
+
   .table-wrap {
     overflow-x: auto;
     border-radius: var(--raio);
