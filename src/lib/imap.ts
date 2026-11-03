@@ -29,6 +29,8 @@ export type EmailLido = {
   data: Date;
   textoCorpo: string;
   anexos: AnexoEmail[];
+  /** Pasta de onde veio (INBOX ou a de spam). */
+  pasta: string;
 };
 
 /** Extensões que interessam ao processo de nota fiscal / fatura. */
@@ -47,6 +49,27 @@ function ehLixo(a: Attachment): boolean {
 
 export function imapConfigurado(): boolean {
   return !!(process.env.IMAP_HOST && process.env.IMAP_USER && process.env.IMAP_PASS);
+}
+
+/**
+ * A pasta de spam da caixa, achada pela marca \\Junk do próprio servidor (RFC 6154), não pelo nome:
+ * na Locaweb ela se chama "INBOX.Mala_Direta", e a "INBOX.Spam" que existe ao lado está vazia.
+ * Nota de fornecedor cai lá às vezes (a fatura da Vivo de outubro, a NFS-e da Fusion), e o robô
+ * passou a ler as duas pastas em 2026-11-03 (pedido do Júlio).
+ */
+export async function pastaDeSpam(): Promise<string | null> {
+  const client = criarCliente();
+  await client.connect();
+  try {
+    const pastas = await client.list();
+    return pastas.find((p) => p.specialUse === "\\Junk")?.path ?? null;
+  } finally {
+    try {
+      await client.logout();
+    } catch {
+      /* ignora falha ao encerrar */
+    }
+  }
 }
 
 function criarCliente(): ImapFlow {
@@ -327,6 +350,7 @@ export async function lerEmailsRecentes(opts: {
              */
             textoCorpo: (parsed.text ?? "").replace(/[\u200B-\u200D\uFEFF]/g, "").slice(0, 4000),
             anexos,
+            pasta,
           });
         } catch {
           // um e-mail malformado não pode derrubar a varredura inteira

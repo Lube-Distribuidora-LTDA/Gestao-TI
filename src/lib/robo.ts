@@ -1,6 +1,7 @@
 import { supabaseAdmin, BUCKET_DOCUMENTOS } from "./supabase";
 import {
   lerEmailsRecentes,
+  pastaDeSpam,
   classificarAnexo,
   extrairCompetencia,
   extrairVencimento,
@@ -51,6 +52,8 @@ export type ResultadoLeitura = {
   faturasAtualizadas: number;
   semCorrespondencia: number;
   jaProcessados: number;
+  /** O que veio de cada pasta lida (a entrada e a de spam). */
+  pastas?: Array<{ pasta: string; lidos: number; candidatos: number }>;
   detalhes: Array<{ assunto: string; remetente: string; resultado: string }>;
   erro?: string;
 };
@@ -352,19 +355,48 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
       .select("message_id")
       .gte("recebido_em", new Date(Date.now() - dias * 86_400_000).toISOString());
 
-    const varredura = await lerEmailsRecentes({
-      dias,
-      pasta: cfg.get("imap_pasta") || "INBOX",
-      remetentesConhecidos,
-      remetentesSemAnexo,
-      jaProcessados: new Set((processados ?? []).map((p) => p.message_id as string)),
-    });
+    /*
+     * A caixa de entrada e a de spam. Nota de fornecedor cai no spam às vezes (a fatura da Vivo de
+     * outubro, a NFS-e da Fusion de 02/10), e lá ninguém olha. A triagem é a mesma nas duas: só
+     * vira candidato quem tem o endereço ou o domínio de um fornecedor cadastrado. O golpe que imita
+     * fornecedor ("contadigitalvivo@...fatura9.online") vem de domínio que não está no cadastro.
+     *
+     * imap_pasta_spam nas configurações força uma pasta; "nenhuma" desliga. Sem ela, a pasta é a que
+     * o servidor marca como spam (\\Junk). Falha ao achar o spam não derruba a leitura da entrada.
+     */
+    const pastaPrincipal = cfg.get("imap_pasta") || "INBOX";
+    const spamConfig = (cfg.get("imap_pasta_spam") ?? "").trim();
+    let pastaSpam: string | null = null;
+    if (spamConfig.toLowerCase() === "nenhuma") pastaSpam = null;
+    else if (spamConfig) pastaSpam = spamConfig;
+    else pastaSpam = await pastaDeSpam().catch(() => null);
+
+    const pastas = [pastaPrincipal, ...(pastaSpam && pastaSpam !== pastaPrincipal ? [pastaSpam] : [])];
+    const jaProcessados = new Set((processados ?? []).map((p) => p.message_id as string));
+    const leituras: Awaited<ReturnType<typeof lerEmailsRecentes>>[] = [];
+    for (const pasta of pastas) {
+      leituras.push(
+        await lerEmailsRecentes({ dias, pasta, remetentesConhecidos, remetentesSemAnexo, jaProcessados })
+      );
+    }
+    const varredura = {
+      emails: leituras.flatMap((l) => l.emails),
+      totalNoPeriodo: leituras.reduce((s, l) => s + l.totalNoPeriodo, 0),
+      candidatos: leituras.reduce((s, l) => s + l.candidatos, 0),
+      baixados: leituras.reduce((s, l) => s + l.baixados, 0),
+      cortados: leituras.reduce((s, l) => s + l.cortados, 0),
+    };
 
     const emails = varredura.emails;
     base.emailsLidos = varredura.totalNoPeriodo;
     base.candidatos = varredura.candidatos;
     base.baixados = varredura.baixados;
     base.cortados = varredura.cortados;
+    base.pastas = pastas.map((pasta, i) => ({
+      pasta,
+      lidos: leituras[i].totalNoPeriodo,
+      candidatos: leituras[i].candidatos,
+    }));
 
     /* Nenhum documento pode sumir em silêncio: se o limite cortou alguém, isso
        vira uma linha no relatório da execução, visível na tela do robô. */
@@ -953,7 +985,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
         remetente: email.remetente,
         resultado: `✓ ${fornecedor.nome} / ${conta.descricao} — ${salvos} documento(s)${
           temDuvida ? " (classificação a confirmar)" : ""
-        }`,
+        }${email.pasta !== pastaPrincipal ? " (veio do spam)" : ""}`,
       });
     }
 
@@ -974,6 +1006,7 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
             faturasAtualizadas: base.faturasAtualizadas,
             semCorrespondencia: base.semCorrespondencia,
             jaProcessados: base.jaProcessados,
+            pastas: base.pastas,
             itens: detalhes.slice(0, 60),
           },
         })

@@ -229,6 +229,9 @@ export default function RoboPage() {
                           <span>
                             {e.emails_lidos} e-mail(s) na janela
                             {e.detalhes?.baixados != null && ` · ${e.detalhes.baixados} baixado(s)`}
+                            {/* desde 2026-11-03 o robô lê também a pasta de spam */}
+                            {Array.isArray(e.detalhes?.pastas) && e.detalhes.pastas.length > 1 &&
+                              ` · ${e.detalhes.pastas.slice(1).reduce((s: number, p: { lidos: number }) => s + p.lidos, 0)} no spam`}
                           </span>
                         )}
                         {(e.detalhes?.cortados ?? 0) > 0 && (
