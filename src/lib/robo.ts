@@ -1135,7 +1135,7 @@ export async function executarCobrancas(opts?: {
 
         // só começa a cobrar a N dias do vencimento
         const inicio = new Date(f.vencimento + "T00:00:00");
-        inicio.setDate(inicio.getDate() - (f.dias_antes_vencimento ?? 5));
+        inicio.setDate(inicio.getDate() - (f.dias_antes_vencimento ?? 14));
         if (hoje < inicio.toISOString().slice(0, 10)) {
           pular("ainda fora da janela de cobrança");
           continue;

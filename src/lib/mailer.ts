@@ -80,13 +80,35 @@ export async function enviarEmail(opts: {
     const { default: MailComposer } = await import("nodemailer/lib/mail-composer/index.js");
     const bruta: Buffer = await new MailComposer(mensagem).compile().build();
 
-    const info = await getTransporter().sendMail({
-      raw: bruta,
-      envelope: {
-        from: process.env.SMTP_USER,
-        to: [opts.para, ...(opts.cc ? [opts.cc] : [])],
-      },
-    });
+    /*
+     * Erro 4xx do servidor é temporário ("tente mais tarde"): em 2026-11-03 a cobrança da Vivo
+     * voltou com "451 4.3.0 queue file write error", a fila de saída da Locaweb engasgada. Uma nova
+     * tentativa alguns segundos depois costuma passar. Erro 5xx (endereço inválido, recusa) é
+     * definitivo e não se repete. Duas tentativas a mais no máximo, para caber no tempo da função.
+     */
+    const enviar = () =>
+      getTransporter().sendMail({
+        raw: bruta,
+        envelope: {
+          from: process.env.SMTP_USER,
+          to: [opts.para, ...(opts.cc ? [opts.cc] : [])],
+        },
+      });
+    const temporario = (e: unknown) => {
+      const codigo = Number((e as { responseCode?: number })?.responseCode ?? 0);
+      const texto = e instanceof Error ? e.message : String(e);
+      return (codigo >= 400 && codigo < 500) || /\b4\d\d[ -]4\.\d\.\d\b/.test(texto);
+    };
+    let info: Awaited<ReturnType<typeof enviar>> | undefined;
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        info = await enviar();
+        break;
+      } catch (e) {
+        if (tentativa >= 3 || !temporario(e)) throw e;
+        await new Promise((r) => setTimeout(r, tentativa * 4000));
+      }
+    }
 
     /*
      * O SMTP só transmite. Sem este arquivamento a cobrança saía de verdade,

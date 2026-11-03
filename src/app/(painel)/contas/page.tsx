@@ -36,7 +36,7 @@ const VAZIO = {
   fornecedor_id: "", categoria_id: "", descricao: "", identificador: "",
   valor_previsto: "", periodicidade: "mensal" as Periodicidade, dia_vencimento: "10",
   exige_nota_fiscal: true, exige_fatura: true, cobranca_ativa: true,
-  dias_antes_vencimento: "5", intervalo_cobranca_dias: "3", max_cobrancas: "4",
+  dias_antes_vencimento: "14", intervalo_cobranca_dias: "3", max_cobrancas: "4",
   palavras_chave: "", centro_custo: "", ativo: true, observacoes: "",
 };
 
@@ -114,7 +114,7 @@ export default function ContasPage() {
       categoria_id: form.categoria_id || null,
       valor_previsto: Number(form.valor_previsto || 0),
       dia_vencimento: form.dia_vencimento ? Number(form.dia_vencimento) : null,
-      dias_antes_vencimento: Number(form.dias_antes_vencimento || 5),
+      dias_antes_vencimento: Number(form.dias_antes_vencimento || 14),
       intervalo_cobranca_dias: Number(form.intervalo_cobranca_dias || 3),
       max_cobrancas: Number(form.max_cobrancas || 4),
       palavras_chave: form.palavras_chave.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean),
