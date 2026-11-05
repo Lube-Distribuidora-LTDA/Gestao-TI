@@ -30,6 +30,7 @@ export const TABELAS: Record<string, ConfigTabela> = {
       "periodicidade", "dia_vencimento", "exige_nota_fiscal", "exige_fatura",
       "cobranca_ativa", "dias_antes_vencimento", "intervalo_cobranca_dias",
       "max_cobrancas", "palavras_chave", "centro_custo", "ativo", "observacoes",
+      "referencia_meses_antes",
     ],
     ordem: { coluna: "descricao", asc: true },
     busca: ["descricao", "identificador", "centro_custo"],

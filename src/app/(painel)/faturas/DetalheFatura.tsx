@@ -59,6 +59,7 @@ export function DetalheFatura({
 
   const [valorReal, setValorReal] = useState("");
   const [numeroNota, setNumeroNota] = useState("");
+  const [mesReferencia, setMesReferencia] = useState(""); // "AAAA-MM", do <input type="month">
   const [tipoUpload, setTipoUpload] = useState<TipoDocumento>("nota_fiscal");
   const inputArquivo = useRef<HTMLInputElement>(null);
 
@@ -72,6 +73,7 @@ export function DetalheFatura({
       setCobrancas(d.cobrancas);
       setValorReal(d.fatura.valor_real != null ? String(d.fatura.valor_real) : "");
       setNumeroNota(d.fatura.numero_nota ?? "");
+      setMesReferencia((d.fatura.mes_referencia ?? "").slice(0, 7));
     } else {
       aoAvisar("erro", d.erro ?? "Erro ao carregar a fatura.");
     }
@@ -243,7 +245,10 @@ export function DetalheFatura({
               {fatura.identificador ? ` · ${fatura.identificador}` : ""}
             </div>
             <div className="mt-1 text-xs text-t3">
-              {competenciaExtenso(fatura.competencia)} · vence {data(fatura.vencimento)}
+              {competenciaExtenso(fatura.competencia)}
+              {fatura.mes_referencia?.slice(0, 7) !== fatura.competencia?.slice(0, 7) &&
+                ` · referente a ${competenciaExtenso(fatura.mes_referencia)}`}
+              {" "}· vence {data(fatura.vencimento)}
               {fatura.vencida && <span className="ml-1 font-bold text-perigo">(em atraso)</span>}
             </div>
           </div>
@@ -362,7 +367,7 @@ export function DetalheFatura({
         <h3 className="mb-3 text-sm font-extrabold uppercase tracking-wider text-t3">
           Conferência de valores
         </h3>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <div>
             <label className="label">Valor real da fatura</label>
             <input
@@ -383,6 +388,16 @@ export function DetalheFatura({
               onChange={(e) => setNumeroNota(e.target.value)}
             />
           </div>
+          <div>
+            <label className="label">Mês referência</label>
+            <input
+              className="input"
+              type="month"
+              value={mesReferencia}
+              onChange={(e) => setMesReferencia(e.target.value)}
+              title="Mês a que esta fatura se refere. A regra de todas as faturas da conta fica em Contas e contratos."
+            />
+          </div>
           <div className="flex items-end">
             <BotaoAcao
               carregando={salvando}
@@ -391,6 +406,11 @@ export function DetalheFatura({
                   {
                     valor_real: valorReal === "" ? null : Number(valorReal),
                     numero_nota: numeroNota || null,
+                    // só grava correção quando foge da regra da conta; igual à regra (ou vazio) volta a seguir a conta
+                    mes_referencia:
+                      mesReferencia && mesReferencia !== String(fatura.mes_referencia_conta ?? "").slice(0, 7)
+                        ? `${mesReferencia}-01`
+                        : null,
                   },
                   "Valores atualizados."
                 )

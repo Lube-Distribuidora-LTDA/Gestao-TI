@@ -25,7 +25,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 const CAMPOS_EDITAVEIS = [
   "valor_real", "valor_bruto", "status", "pago_em", "entregue_em", "entregue_por",
   "numero_nota", "numero_documento", "observacoes", "vencimento", "precisa_revisao",
-  "nota_fiscal_recebida_em", "fatura_recebida_em",
+  "nota_fiscal_recebida_em", "fatura_recebida_em", "mes_referencia",
 ];
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {

@@ -28,6 +28,7 @@ type Conta = {
   centro_custo: string | null;
   ativo: boolean;
   observacoes: string | null;
+  referencia_meses_antes: number;
 };
 
 type Opcao = { id: string; nome: string; cor?: string };
@@ -38,6 +39,7 @@ const VAZIO = {
   exige_nota_fiscal: true, exige_fatura: true, cobranca_ativa: true,
   dias_antes_vencimento: "14", intervalo_cobranca_dias: "3", max_cobrancas: "4",
   palavras_chave: "", centro_custo: "", ativo: true, observacoes: "",
+  referencia_meses_antes: "0",
 };
 
 export default function ContasPage() {
@@ -100,6 +102,7 @@ export default function ContasPage() {
       centro_custo: c.centro_custo ?? "",
       ativo: c.ativo,
       observacoes: c.observacoes ?? "",
+      referencia_meses_antes: String(c.referencia_meses_antes ?? 0),
     });
     setEditando(c.id);
     setModal(true);
@@ -117,6 +120,7 @@ export default function ContasPage() {
       dias_antes_vencimento: Number(form.dias_antes_vencimento || 14),
       intervalo_cobranca_dias: Number(form.intervalo_cobranca_dias || 3),
       max_cobrancas: Number(form.max_cobrancas || 4),
+      referencia_meses_antes: Number(form.referencia_meses_antes || 0),
       palavras_chave: form.palavras_chave.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean),
     };
 
@@ -477,7 +481,7 @@ export default function ContasPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="label">Valor previsto (R$) *</label>
               <input
@@ -511,6 +515,23 @@ export default function ContasPage() {
                 value={form.dia_vencimento}
                 onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })}
               />
+            </div>
+            {/* A fatura de consumo vence no mês seguinte ao que cobra (a Vivo de
+                competência Nov/26 é o consumo de outubro): aqui a conta diz isso
+                uma vez, e a coluna "Mês referência" das faturas segue. */}
+            <div>
+              <label className="label">Mês referência</label>
+              <select
+                className="input"
+                value={form.referencia_meses_antes}
+                onChange={(e) => setForm({ ...form, referencia_meses_antes: e.target.value })}
+                title="Mês a que a fatura se refere, contado a partir da competência: o mesmo mês ou meses antes"
+              >
+                <option value="0">Mesmo mês</option>
+                <option value="1">1 mês antes</option>
+                <option value="2">2 meses antes</option>
+                <option value="3">3 meses antes</option>
+              </select>
             </div>
           </div>
 

@@ -20,6 +20,8 @@ import {
 export type FaturaLinha = {
   id: string;
   competencia: string;
+  /** Mês a que a fatura se refere: a regra da conta ou a correção da própria fatura. */
+  mes_referencia: string;
   vencimento: string;
   status: StatusFatura;
   valor_previsto: number;
@@ -346,6 +348,7 @@ export function TelaFaturas({
               <tr>
                 <th>Fornecedor / Contrato</th>
                 <th>Competência</th>
+                <th>Mês referência</th>
                 <th>Vencimento</th>
                 <th className="text-right">Valor</th>
                 <th className="text-center">Documentos</th>
@@ -377,6 +380,10 @@ export function TelaFaturas({
 
                     <td className="whitespace-nowrap font-semibold text-t1">
                       {competenciaLabel(f.competencia)}
+                    </td>
+
+                    <td className="whitespace-nowrap font-semibold text-t2">
+                      {competenciaLabel(f.mes_referencia)}
                     </td>
 
                     <td className="whitespace-nowrap">

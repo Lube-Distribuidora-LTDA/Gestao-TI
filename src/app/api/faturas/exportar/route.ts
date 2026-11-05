@@ -16,6 +16,7 @@ type FaturaExport = {
   identificador: string | null;
   categoria_nome: string | null;
   competencia: string;
+  mes_referencia: string;
   vencimento: string;
   valor_efetivo: number;
   status: StatusFatura;
@@ -99,6 +100,7 @@ export async function GET(req: Request) {
       },
       { titulo: "Categoria", largura: 21, valor: (f) => f.categoria_nome ?? "—" },
       { titulo: "Competência", largura: 12, valor: (f) => competenciaLabel(f.competencia), formato: "centro" },
+      { titulo: "Mês referência", largura: 14, valor: (f) => competenciaLabel(f.mes_referencia), formato: "centro" },
       {
         titulo: "Vencimento",
         largura: 14,
