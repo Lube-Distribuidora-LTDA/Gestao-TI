@@ -516,17 +516,19 @@ export default function ContasPage() {
                 onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })}
               />
             </div>
-            {/* A fatura de consumo vence no mês seguinte ao que cobra (a Vivo de
-                competência Nov/26 é o consumo de outubro): aqui a conta diz isso
-                uma vez, e a coluna "Mês referência" das faturas segue. */}
+            {/* Referência é o mês de uso que a fatura paga. A de consumo cobra o mês
+                anterior (a Vivo de competência Nov/26 é o uso de outubro); a cobrada
+                adiantada, o seguinte (o backup da INTELI+ de Ago/26 é o de setembro).
+                A conta diz isso uma vez, e a coluna "Mês referência" das faturas segue. */}
             <div>
               <label className="label">Mês referência</label>
               <select
                 className="input"
                 value={form.referencia_meses_antes}
                 onChange={(e) => setForm({ ...form, referencia_meses_antes: e.target.value })}
-                title="Mês a que a fatura se refere, contado a partir da competência: o mesmo mês ou meses antes"
+                title="Mês de uso que a fatura paga, contado a partir da competência"
               >
+                <option value="-1">1 mês depois</option>
                 <option value="0">Mesmo mês</option>
                 <option value="1">1 mês antes</option>
                 <option value="2">2 meses antes</option>

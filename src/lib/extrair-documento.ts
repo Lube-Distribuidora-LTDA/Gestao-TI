@@ -110,6 +110,8 @@ export function extrairDeXmlNfse(xml: string): DadosDocumento | null {
     valorLiquido,
     vencimento,
     competencia,
+    // a NFS-e em XML também traz o mês na descrição do serviço (INTELI+, Mais Dados)
+    mesReferencia: referenciaEmTexto(`${descricaoServico ?? ""} ${complemento}`),
     emitente: tag(xml, "xNome") ?? tag(xml, "RazaoSocial"),
     cnpjEmitente: tag(xml, "CNPJ"),
     descricaoServico: descricaoServico?.slice(0, 400),
@@ -277,36 +279,98 @@ const MESES_EXTENSO = [
   "janeiro", "fevereiro", "marco", "abril", "maio", "junho",
   "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 ];
+const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MESES_INGLES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+function mesIso(ano: string | number, mes: string | number): string | undefined {
+  const n = Number(mes);
+  const a = Number(String(ano).length === 2 ? `20${ano}` : ano);
+  return n >= 1 && n <= 12 && a >= 2000 ? `${a}-${String(n).padStart(2, "0")}-01` : undefined;
+}
 
 /**
- * O mês que o documento diz cobrar. Cada fornecedor escreve de um jeito
- * (amostras de 2026-11, das notas e boletos guardados no painel):
- *   - "REFERÊNCIA (ANO/MÊS): 2026/10"   NFCom da Top Link Rio e da Conect Já
- *   - "Mês de referência: 10/2026"      fatura e boleto da Vivo
- *   - "REFERENTE: 10/2026"              locação de impressoras
- *   - "Ref. outubro de 2026"            descrição do serviço do firewall (Print)
- *   - "Competência 10/2026"             nota e boleto da Itanet (período 01/10 a 31/10)
+ * Período de uso escrito no documento ("Período: 25/09/2026 a 24/10/2026", "Sep 24 – Oct 23, 2026")
+ * vira o mês que tem mais dias dentro dele (empate: o primeiro). É assim que os fornecedores
+ * que escrevem a referência a contam: Vivo 25/09–24/10 é outubro, Top Link 10/10–09/11 é
+ * outubro, Conect Já 15/10–14/11 é outubro. Com vários períodos (a Locaweb cobra cada item no
+ * seu ciclo), vale o que começa primeiro. Período de mais de 62 dias (plano trimestral) não conta.
+ */
+function mesDoPeriodo(t: string): string | undefined {
+  const periodos: Array<{ ini: Date; fim: Date }> = [];
+  const dia = (a: number, m: number, d: number) => new Date(Date.UTC(a, m - 1, d));
+
+  for (const m of t.matchAll(/(\d{2})\/(\d{2})\/(20\d{2})\s*(?:a|à|á|até|ate|-|–)\s*(\d{2})\/(\d{2})\/(20\d{2})/gi)) {
+    periodos.push({ ini: dia(+m[3], +m[2], +m[1]), fim: dia(+m[6], +m[5], +m[4]) });
+  }
+
+  const ing = `(${MESES_INGLES.join("|")})[a-z]*\\.?`;
+  for (const m of t.matchAll(new RegExp(`\\b${ing} (\\d{1,2})(?:, (20\\d{2}))?\\s*[–-]?\\s*${ing} (\\d{1,2}), (20\\d{2})`, "gi"))) {
+    const mi = MESES_INGLES.indexOf(m[1].slice(0, 3).toLowerCase()) + 1;
+    const mf = MESES_INGLES.indexOf(m[4].slice(0, 3).toLowerCase()) + 1;
+    const af = +m[6];
+    const ai = m[3] ? +m[3] : mi > mf ? af - 1 : af;
+    periodos.push({ ini: dia(ai, mi, +m[2]), fim: dia(af, mf, +m[5]) });
+  }
+
+  const dias = (p: { ini: Date; fim: Date }) => (+p.fim - +p.ini) / 86_400_000;
+  const validos = periodos
+    .filter((p) => !isNaN(+p.ini) && !isNaN(+p.fim) && dias(p) >= 0 && dias(p) <= 62)
+    .sort((a, b) => +a.ini - +b.ini || +a.fim - +b.fim);
+  if (!validos.length) return undefined;
+
+  const { ini, fim } = validos[0];
+  const porMes = new Map<string, number>();
+  for (let d = new Date(ini); d <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
+    const k = mesIso(d.getUTCFullYear(), d.getUTCMonth() + 1)!;
+    porMes.set(k, (porMes.get(k) ?? 0) + 1);
+  }
+  let melhor: string | undefined;
+  for (const [k, n] of porMes) if (!melhor || n > porMes.get(melhor)!) melhor = k;
+  return melhor;
+}
+
+/**
+ * Referência é o MÊS DE USO que a fatura paga. Cada fornecedor escreve de um jeito
+ * (amostras de 2026-11, das notas e boletos guardados no painel), em ordem de confiança:
+ *   1. o rótulo de referência
+ *      - "REFERÊNCIA (ANO/MÊS): 2026/10"   NFCom da Top Link Rio e da Conect Já
+ *      - "Mês de referência: 10/2026"      fatura e boleto da Vivo
+ *      - "REFERENTE: 10/2026"              locação de impressoras
+ *      - "Ref. outubro de 2026"            descrição do serviço do firewall (Print)
+ *   2. "Competência 10/2026"               nota e boleto da Itanet (período 01/10 a 31/10)
+ *   3. o mês escrito na descrição do serviço
+ *      - "BACKUP: SETEMBRO/2026"           INTELI+, que cobra adiantado (vence 01/09)
+ *      - "MANUT. BANCO: AGOSTO/2026"       Mais Dados
+ *      - "ANTI DDOS (Setembro/2026)"       Dinâmica
+ *      - "FATURAMENTO MENSAL SET/26"       Print
+ *   4. o período de uso (mesDoPeriodo)     Supabase, ChatGPT, Claude, Locaweb
  * A "Competência" de dia/mês/ano da NFS-e (dCompet) NÃO entra: é a data do fato
  * gerador, quase sempre o dia da emissão, e cairia no mês seguinte ao do serviço.
  */
 export function referenciaEmTexto(texto: string): string | undefined {
-  const t = texto.replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ");
-  const mes = (a: string, m: string) => {
-    const n = Number(m);
-    return n >= 1 && n <= 12 ? `${a}-${String(n).padStart(2, "0")}-01` : undefined;
-  };
+  const t = texto.replace(/[​-‍﻿\u0000]/g, "").replace(/\s+/g, " ");
+  const semAcento = t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const extenso = `(${MESES_EXTENSO.join("|")})`;
 
   let m = t.match(/refer[êe]ncia\s*\(\s*ano\s*\/\s*m[êe]s\s*\)\s*:?\s*(20\d{2})\s*\/\s*(\d{1,2})(?!\d)/i);
-  if (m) return mes(m[1], m[2]);
+  if (m) return mesIso(m[1], m[2]);
 
   m = t.match(/(?:m[êe]s\s*(?:de\s*)?refer[êe]ncia|referente|refer[êe]ncia)\s*:?\s*(\d{1,2})\s*\/\s*(20\d{2})(?!\d)/i);
-  if (m) return mes(m[2], m[1]);
+  if (m) return mesIso(m[2], m[1]);
 
-  const semAcento = t.normalize("NFD").replace(/[̀-ͯ]/g, "");
-  m = semAcento.match(new RegExp(`\\bref(?:erencia|erente|\\.)?\\s*:?\\s*(?:a\\s+)?(${MESES_EXTENSO.join("|")})\\s*(?:de\\s*|\\/\\s*)?(20\\d{2})`, "i"));
-  if (m) return mes(m[2], String(MESES_EXTENSO.indexOf(m[1].toLowerCase()) + 1));
+  m = semAcento.match(new RegExp(`\\bref(?:erencia|erente|\\.)?\\s*:?\\s*(?:a\\s+)?${extenso}\\s*(?:de\\s*|\\/\\s*)?(20\\d{2})`, "i"));
+  if (m) return mesIso(m[2], MESES_EXTENSO.indexOf(m[1].toLowerCase()) + 1);
 
-  return competenciaEmTexto(texto);
+  const competencia = competenciaEmTexto(texto);
+  if (competencia) return competencia;
+
+  m = semAcento.match(new RegExp(`\\b${extenso}\\s*\\/\\s*(20\\d{2})\\b`, "i"));
+  if (m) return mesIso(m[2], MESES_EXTENSO.indexOf(m[1].toLowerCase()) + 1);
+
+  m = semAcento.match(new RegExp(`\\b(?:mensal|ref\\.?|referente)\\s*:?\\s*(${MESES_ABREV.join("|")})\\s*\\/\\s*(\\d{2}|20\\d{2})\\b`, "i"));
+  if (m) return mesIso(m[2], MESES_ABREV.indexOf(m[1].toLowerCase()) + 1);
+
+  return mesDoPeriodo(t);
 }
 
 export function extrairDeTextoPdf(texto: string): DadosDocumento {
@@ -348,7 +412,10 @@ export async function extrairDados(
        */
       const mod = await import("pdf-parse/lib/pdf-parse.js");
       const pdfParse = mod.default ?? mod;
-      const { text } = await pdfParse(conteudo);
+      let { text } = await pdfParse(conteudo);
+      /* O pdf-parse às vezes devolve vazio um PDF que na leitura seguinte sai inteiro
+         (visto nas NFS-e da Print em 2026-11): uma segunda tentativa antes de desistir. */
+      if (text.trim().length < 20) ({ text } = await pdfParse(conteudo));
       return extrairDeTextoPdf(text);
     }
   } catch {
