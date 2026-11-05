@@ -20,6 +20,8 @@ export type DadosDocumento = {
   vencimento?: string;
   /** YYYY-MM-01 — mês de referência do serviço. */
   competencia?: string;
+  /** YYYY-MM-01 — o mês que o próprio documento diz cobrar ("Mês de referência", "Referente"). */
+  mesReferencia?: string;
   emitente?: string;
   cnpjEmitente?: string;
   descricaoServico?: string;
@@ -270,6 +272,43 @@ function competenciaEmTexto(texto: string): string | undefined {
   return `${m[2]}-${m[1].padStart(2, "0")}-01`;
 }
 
+// sem acento: o texto é comparado já sem acentos ("março" e "marco" valem igual)
+const MESES_EXTENSO = [
+  "janeiro", "fevereiro", "marco", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/**
+ * O mês que o documento diz cobrar. Cada fornecedor escreve de um jeito
+ * (amostras de 2026-11, das notas e boletos guardados no painel):
+ *   - "REFERÊNCIA (ANO/MÊS): 2026/10"   NFCom da Top Link Rio e da Conect Já
+ *   - "Mês de referência: 10/2026"      fatura e boleto da Vivo
+ *   - "REFERENTE: 10/2026"              locação de impressoras
+ *   - "Ref. outubro de 2026"            descrição do serviço do firewall (Print)
+ *   - "Competência 10/2026"             nota e boleto da Itanet (período 01/10 a 31/10)
+ * A "Competência" de dia/mês/ano da NFS-e (dCompet) NÃO entra: é a data do fato
+ * gerador, quase sempre o dia da emissão, e cairia no mês seguinte ao do serviço.
+ */
+export function referenciaEmTexto(texto: string): string | undefined {
+  const t = texto.replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ");
+  const mes = (a: string, m: string) => {
+    const n = Number(m);
+    return n >= 1 && n <= 12 ? `${a}-${String(n).padStart(2, "0")}-01` : undefined;
+  };
+
+  let m = t.match(/refer[êe]ncia\s*\(\s*ano\s*\/\s*m[êe]s\s*\)\s*:?\s*(20\d{2})\s*\/\s*(\d{1,2})(?!\d)/i);
+  if (m) return mes(m[1], m[2]);
+
+  m = t.match(/(?:m[êe]s\s*(?:de\s*)?refer[êe]ncia|referente|refer[êe]ncia)\s*:?\s*(\d{1,2})\s*\/\s*(20\d{2})(?!\d)/i);
+  if (m) return mes(m[2], m[1]);
+
+  const semAcento = t.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  m = semAcento.match(new RegExp(`\\bref(?:erencia|erente|\\.)?\\s*:?\\s*(?:a\\s+)?(${MESES_EXTENSO.join("|")})\\s*(?:de\\s*|\\/\\s*)?(20\\d{2})`, "i"));
+  if (m) return mes(m[2], String(MESES_EXTENSO.indexOf(m[1].toLowerCase()) + 1));
+
+  return competenciaEmTexto(texto);
+}
+
 export function extrairDeTextoPdf(texto: string): DadosDocumento {
   const numeroNota =
     texto.match(/(?:n[ºo°.]?\s*(?:da\s*)?nota|nfs-?e\s*n[ºo°.]?|n[úu]mero\s*da\s*nfs-?e)[^\d]{0,12}(\d{2,10})/i)?.[1] ??
@@ -283,6 +322,7 @@ export function extrairDeTextoPdf(texto: string): DadosDocumento {
     valorTotal: codigo.valor ?? valorEmTexto(texto),
     vencimento: codigo.vencimento ?? vencimentoEmTexto(texto),
     competencia: competenciaEmTexto(texto),
+    mesReferencia: referenciaEmTexto(texto),
     fonte: "pdf_texto",
     confianca: codigo.vencimento ? "alta" : "media",
   };
@@ -350,6 +390,7 @@ export function consolidar(partes: Array<{ tipo: string; dados: DadosDocumento }
     por("valorLiquido", dados.valorLiquido, ehNota ? dados.confianca : "baixa");
 
     por("competencia", dados.competencia, dados.confianca);
+    por("mesReferencia", dados.mesReferencia, dados.confianca);
     por("emitente", dados.emitente, dados.confianca);
     por("cnpjEmitente", dados.cnpjEmitente, dados.confianca);
     por("descricaoServico", dados.descricaoServico, dados.confianca);

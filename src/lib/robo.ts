@@ -949,9 +949,14 @@ export async function processarEmails(opts?: { dias?: number }): Promise<Resulta
 
       const { data: atual } = await db
         .from("faturas")
-        .select("nota_fiscal_recebida_em, fatura_recebida_em, status")
+        .select("nota_fiscal_recebida_em, fatura_recebida_em, status, mes_referencia")
         .eq("id", fatura.id)
         .single();
+
+      /* O mês que o documento diz cobrar ("Mês de referência: 10/2026") vira o mês de
+         referência da fatura. Só preenche o vazio: o que já está lá (vindo de outro
+         documento ou corrigido à mão no detalhe) não é trocado. */
+      if (doc.mesReferencia && !atual?.mes_referencia) patch.mes_referencia = doc.mesReferencia;
 
       const nfOk = !conta.exige_nota_fiscal || temNota || !!atual?.nota_fiscal_recebida_em;
       const fatOk = !conta.exige_fatura || temFatura || !!atual?.fatura_recebida_em;
